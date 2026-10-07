@@ -1,0 +1,44 @@
+.pagina {
+  min-height: 100vh;
+  background: #eeeeee;
+  padding: 20px;
+}
+
+.chat {
+  max-width: 800px;
+  height: 90vh;
+  margin: auto;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+.mensajes {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.inputMensaje {
+  display: flex;
+  gap: 10px;
+  padding: 15px;
+  border-top: 1px solid #ddd;
+}
+
+.inputMensaje input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
