@@ -1,0 +1,6 @@
+.contenedor {
+  background-image: url("/fondo-login.jpg"); /* O .png según la imagen real */
+  background-size: cover;
+  background-position: center;
+}
+
