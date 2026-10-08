@@ -97,13 +97,18 @@ io.on("connection", (socket) => {
     console.log("Disconnect");
   });
 });
+
+////////////////////
+// REGISTRO
+////////////////////
+
 app.post("/register", async function (req, res) {
   try {
-    const { nombre, correo, contraseña, foto } = req.body;
+    const { nombre, mail, contraseña} = req.body;
 
     let respuesta = await realizarQuery(
-      "SELECT * FROM UsuariosWhatsapp WHERE correo = ?",
-      [correo]
+      "SELECT * FROM UsuariosBakery WHERE mail = ?",
+      [mail]
     );
 
     if (respuesta && respuesta.length > 0) {
@@ -111,10 +116,10 @@ app.post("/register", async function (req, res) {
     }
 
     let resultado = await realizarQuery(
-      "INSERT INTO UsuariosWhatsapp(nombre, correo, contraseña, foto) VALUES (?, ?, ?, ?)",
-      [nombre, correo, contraseña, foto || null]
+      "INSERT INTO UsuariosBakery (nombre, mail, contraseña) VALUES (?, ?, ?)",
+      [nombre, mail, contraseña || null]
     );
-
+      
     res.send({
       ok: true,
       message: "Usuario Agregado",
@@ -128,7 +133,12 @@ app.post("/register", async function (req, res) {
     });
   }
 });
+
+////////////////////////
 // LOGIN:
+///////////////////////
+
+
 app.post("/login", async function (req, res) {
   try {
     console.log("Datos recibidos en sesión:", req.body);

@@ -13,7 +13,7 @@ export default function RegistroPage() {
 
   const [formData, setFormData] = useState({
     nombre: "",
-    correo: "",
+    mail: "",
     contraseña: "",
   });
   const [mensajeError, setMensajeError] = useState("");
@@ -37,7 +37,7 @@ export default function RegistroPage() {
 
     try {
       // Ajustá la URL y los nombres de los campos a los de tu backend
-      const respuesta = await fetch("http://localhost:4000/registro", {
+      const respuesta = await fetch("http://localhost:4000/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,8 +84,8 @@ export default function RegistroPage() {
             <Input
               className={Inputstyles.input}
               type="email"
-              name="correo"
-              value={formData.correo}
+              name="mail"
+              value={formData.mail}
               onChange={handleChange}
               placeholder="Correo electrónico"
               aria-label="Correo electrónico"
