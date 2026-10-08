@@ -1,14 +1,10 @@
-"use client"
-import styles from "./Button.module.css"
+"use client";
+import styles from "./Button.module.css";
 
-export default function Button({ text, onClick, type = "submit" }) {
-    return (
-        <button
-            type={type}
-            onClick={onClick}
-            className={styles.boton}
-        >
-            {text}
-        </button>
-    );
+export default function Button({ onClick, type = "submit", children }) {
+  return (
+    <button type={type} onClick={onClick} className={styles.boton}>
+      {children}
+    </button>
+  );
 }

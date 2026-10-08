@@ -3,6 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./registro.module.css";
+import Inputstyles from "@/components/Input.module.css";
+import Input from "@/components/Input";
+import Button from "@/components/Button";
+import Buttonstyle from "@/components/Button.module.css";
 
 export default function RegistroPage() {
   const router = useRouter();
@@ -65,8 +69,8 @@ export default function RegistroPage() {
           <form className={styles.form} onSubmit={handleSubmit}>
             <h1 className={styles.titulo}>Crear cuenta</h1>
 
-            <input
-              className={styles.input}
+            <Input
+              className={Inputstyles.input}
               type="text"
               name="nombre"
               value={formData.nombre}
@@ -77,8 +81,8 @@ export default function RegistroPage() {
               required
             />
 
-            <input
-              className={styles.input}
+            <Input
+              className={Inputstyles.input}
               type="email"
               name="correo"
               value={formData.correo}
@@ -90,7 +94,7 @@ export default function RegistroPage() {
             />
 
             <input
-              className={styles.input}
+              className={Inputstyles.input}
               type="password"
               name="contraseña"
               value={formData.contraseña}
@@ -103,11 +107,11 @@ export default function RegistroPage() {
 
             {mensajeError && <p className={styles.error}>{mensajeError}</p>}
 
-            <button type="submit" className={styles.boton} disabled={enviando}>
+            <Button type="submit" className={Buttonstyle.boton} disabled={enviando}>
               <span className={styles.corazon} aria-hidden="true">♥</span>
               {enviando ? "Creando..." : "Registrarse"}
               <span className={styles.corazon} aria-hidden="true">♥</span>
-            </button>
+            </Button>
 
             <p className={styles.cambioVista}>
               ¿Ya tenés cuenta?{" "}

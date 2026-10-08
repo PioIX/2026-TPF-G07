@@ -3,6 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./login.module.css";
+import Inputstyles from "@/components/Input.module.css";
+import Input from "@/components/Input";
+import Button from "@/components/Button";
+import Buttonstyle from "@/components/Button.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -64,8 +68,8 @@ export default function LoginPage() {
           <form className={styles.form} onSubmit={handleSubmit}>
             <h1 className={styles.titulo}>Iniciar sesión</h1>
 
-            <input
-              className={styles.input}
+            <Input
+              className={Inputstyles.input}
               type="email"
               name="correo"
               value={formData.correo}
@@ -76,8 +80,8 @@ export default function LoginPage() {
               required
             />
 
-            <input
-              className={styles.input}
+            <Input
+              className={Inputstyles.input}
               type="password"
               name="contraseña"
               value={formData.contraseña}
@@ -90,11 +94,19 @@ export default function LoginPage() {
 
             {mensajeError && <p className={styles.error}>{mensajeError}</p>}
 
-            <button type="submit" className={styles.boton} disabled={enviando}>
-              <span className={styles.corazon} aria-hidden="true">♥</span>
+            <Button
+              type="submit"
+              className={Buttonstyle.boton}
+              disabled={enviando}
+            >
+              <span className={styles.corazon} aria-hidden="true">
+                ♥
+              </span>
               {enviando ? "Entrando..." : "Entrar"}
-              <span className={styles.corazon} aria-hidden="true">♥</span>
-            </button>
+              <span className={styles.corazon} aria-hidden="true">
+                ♥
+              </span>
+            </Button>
 
             <p className={styles.cambioVista}>
               ¿No tenés cuenta?{" "}
