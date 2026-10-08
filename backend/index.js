@@ -102,7 +102,7 @@ io.on("connection", (socket) => {
 // REGISTRO
 ////////////////////
 
-app.post("/register", async function (req, res) {
+app.post("/registro", async function (req, res) {
   try {
     const { nombre, mail, contraseña} = req.body;
 

@@ -37,7 +37,7 @@ export default function RegistroPage() {
 
     try {
       // Ajustá la URL y los nombres de los campos a los de tu backend
-      const respuesta = await fetch("http://localhost:4000/register", {
+      const respuesta = await fetch("http://localhost:4000/registro", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
