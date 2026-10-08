@@ -1,6 +1,117 @@
-.contenedor {
-  background-image: url("/fondo-login.jpg"); /* O .png según la imagen real */
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+
+  background-image: url("/inicio(1).png");
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
 }
 
+/* Caja con la misma proporción de la imagen (1672x941) y el mismo tamaño que
+   tiene con "cover". Lo que va adentro se mide en % de la imagen. */
+.escena {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100vw, calc(100vh * 1672 / 941));
+  height: max(100vh, calc(100vw * 941 / 1672));
+  transform: translate(-50%, -50%);
+}
+
+/* Botón centrado justo debajo del cartel (el cartel está en x 27%-72%, termina en y 67%) */
+.boton {
+  position: absolute;
+  left: 49.7%;
+  top: 71%;
+  translate: -50% 0; /* centra sin pisar el transform del hover */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 22%;
+  padding: 0.55em 1.1em;
+  font-family: inherit;
+  font-weight: 600;
+  /* el tamaño crece junto con la imagen */
+  font-size: calc(max(100vw, 100vh * 1672 / 941) * 0.0225);
+  color: #fff4e6;
+  background: #f08a85;
+  border: 3px solid #d9625f;
+  border-radius: 999px;
+  box-shadow: 0 5px 0 #c24f4c, 0 10px 18px rgba(58, 31, 16, 0.35);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease,
+    background 0.2s ease;
+}
+
+/* Brillo que cruza el botón */
+.boton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+}
+
+.boton:hover {
+  background: #f39a95;
+  transform: translateY(-5px) scale(1.07);
+  box-shadow: 0 10px 0 #c24f4c, 0 18px 24px rgba(58, 31, 16, 0.35);
+}
+
+.boton:hover::after {
+  left: 130%;
+  transition: left 0.7s ease;
+}
+
+.boton:hover .corazon {
+  animation: latido 0.7s ease-in-out infinite;
+}
+
+.boton:active {
+  transform: translateY(2px) scale(0.98);
+  box-shadow: 0 2px 0 #c24f4c;
+}
+
+.boton:focus-visible {
+  outline: 3px solid #fff4e6;
+  outline-offset: 3px;
+}
+
+.corazon {
+  display: inline-block;
+  font-size: 0.7em;
+}
+
+@keyframes latido {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boton,
+  .boton:hover {
+    transition: none;
+    transform: none;
+  }
+  .boton:hover .corazon {
+    animation: none;
+  }
+  .boton:hover::after {
+    display: none;
+  }
+}

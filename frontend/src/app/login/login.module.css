@@ -1,0 +1,216 @@
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+
+  background-image: url("/imagen-inicio.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Caja con la misma proporción de la imagen (1672x941) y el mismo tamaño que
+   tiene con "cover". Todo lo que va adentro se mide en % de la imagen. */
+.escena {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100vw, calc(100vh * 1672 / 941));
+  height: max(100vh, calc(100vw * 941 / 1672));
+  transform: translate(-50%, -50%);
+}
+
+/* Espacio blanco del cartel (x 32%-67.5%, y 45%-90.5% de la imagen).
+   El font-size crece con la imagen y todo lo de adentro usa "em". */
+.panel {
+  position: absolute;
+  left: 32.2%;
+  width: 35.3%;
+  top: 45%;
+  height: 45.6%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(max(100vw, 100vh * 1672 / 941) * 0.0105);
+}
+
+.form {
+  width: 82%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.7em;
+}
+
+.titulo {
+  margin: 0 0 0.2em;
+  text-align: center;
+  font-family: inherit;
+  font-size: 1.6em;
+  font-weight: 600;
+  color: #7a4a2b;
+}
+
+/* ===== Inputs ===== */
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7em 1.2em;
+  font-family: inherit;
+  font-size: 1.1em;
+  color: #7a4a2b;
+  background: #fffaf2;
+  border: 3px solid #e3b98a;
+  border-radius: 999px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input::placeholder {
+  color: #c9a98a;
+}
+
+.input:hover {
+  border-color: #f2a39e;
+}
+
+.input:focus {
+  border-color: #f08a85;
+  box-shadow: 0 0 0 4px rgba(240, 138, 133, 0.25);
+}
+
+.error {
+  margin: 0;
+  text-align: center;
+  font-size: 0.95em;
+  color: #c24f4c;
+}
+
+/* ===== Botón (mismo estilo que el de la pantalla de inicio) ===== */
+.boton {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 0.3em;
+  padding: 0.55em 1.2em;
+  font-family: inherit;
+  font-size: 1.3em;
+  font-weight: 600;
+  color: #fff4e6;
+  background: #f08a85;
+  border: 3px solid #d9625f;
+  border-radius: 999px;
+  box-shadow: 0 5px 0 #c24f4c;
+  cursor: pointer;
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease,
+    background 0.2s ease;
+}
+
+.boton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+}
+
+.boton:hover:not(:disabled) {
+  background: #f39a95;
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 9px 0 #c24f4c, 0 14px 20px rgba(122, 74, 43, 0.3);
+}
+
+.boton:hover:not(:disabled)::after {
+  left: 130%;
+  transition: left 0.7s ease;
+}
+
+.boton:hover:not(:disabled) .corazon {
+  animation: latido 0.7s ease-in-out infinite;
+}
+
+.boton:active:not(:disabled) {
+  transform: translateY(2px) scale(0.98);
+  box-shadow: 0 2px 0 #c24f4c;
+}
+
+.boton:focus-visible {
+  outline: 3px solid #7a4a2b;
+  outline-offset: 3px;
+}
+
+.boton:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.corazon {
+  display: inline-block;
+  font-size: 0.7em;
+}
+
+@keyframes latido {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+}
+
+/* ===== Link para ir al login ===== */
+.cambioVista {
+  margin: 0.2em 0 0;
+  text-align: center;
+  font-size: 1em;
+  color: #7a4a2b;
+}
+
+.enlace {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: #d9625f;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.enlace:hover {
+  color: #b94744;
+}
+
+.enlace:focus-visible {
+  outline: 2px solid #7a4a2b;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respeta a quienes tienen desactivadas las animaciones en su sistema */
+@media (prefers-reduced-motion: reduce) {
+  .boton,
+  .boton:hover:not(:disabled) {
+    transition: none;
+    transform: none;
+  }
+  .boton:hover:not(:disabled) .corazon {
+    animation: none;
+  }
+  .boton:hover:not(:disabled)::after {
+    display: none;
+  }
+}

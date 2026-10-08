@@ -65,12 +65,72 @@ El objetivo del juego es crear los pasteles más rápido que el oponente
 ## 1.4 Diseño inicial
 **Wireframes / bocetos de las pantallas principales**
 
-Herramienta utilizada: [Figma / Canva]. Enlace: [URL]
+Herramienta utilizada: [Figma / Canva]. 
 
 | Pantalla | Boceto |
 |---|---|
 | Pantalla principal | <img src="docs/img/Home.jpg" alt="home" width="100">  |
 | Login / Registro | <img src="docs/img/Inicio-1.jpg" alt="login/registro" width="100">|
-| Juego | <img src="docs/img/juego-1.jpg"  width="100">   <img src="docs/img/juego-2.jpg"  width="100">  <img src="docs/img/juego-3.jpg"  width="100"> <img src="docs/img/juego-4.jpg"  width="100"> <img src="docs/img/juego-5.jpg"  width="100"> <img src="docs/img/juego-6.jpg"  width="100"> |
+| Juego | <img src="docs/img/juego-1.jpg"  width="100">   <img src="docs/img/juego-2.jpg"  width="100">  <img src="docs/img/juego-3.jpg"  width="100"> <img src="docs/img/juego-4.jpg"  width="100"> <img src="docs/img/juego-5.jpg"  width="100"> <img src="docs/img/juego-6.jpg"  width="100"> <img src="docs/img/juego-7.jpg"  width="100"> <img src="docs/img/juego-8.jpg"  width="100"> |
 | Panel de administrador | `![Admin](docs/img/admin.png)` |
 
+## 1.4 Modelo de datos
+Diagrama Entidad-Relación (archivo en `docs/diagrama/`):
+![DER](docs/diagrama/DER.png)
+
+
+
+### Hitos del proyecto
+
+| Hito | Descripción | Fecha de finalización |
+|---|---|---|
+| **Hito 1** | Base del sistema: repo, base de datos, backend y frontend conectados, login y registro funcionando | 30/10 |
+| **Hito 2** | Funcionalidad principal completa (CRUD) y WebSockets funcionando | 13/11 |
+| **Hito 3** | Producto final probado, documentación y DER actualizados, listo para la Expo | 15/11 |
+
+### Cronograma general
+
+| Fecha | Evento |
+|---|---|
+| 28/09 | Inicio del proyecto |
+| 05/10 | Entrega del presupuesto y documento de alcance |
+| 07/10 | Devolución y revisión de las propuestas |
+| 30/10 | Primer objetivo parcial (Hito 1) |
+| 13/11 | Segundo objetivo parcial (Hito 2) |
+| 15/11 | Tercer objetivo parcial (Hito 3) |
+| 20/11 | Expo Pio, presentación final |
+| 25/11 en adelante | Coloquios individuales |
+
+
+# 2. Tecnologías y arquitectura
+
+| Capa | Tecnología |
+|---|---|
+| Frontend | React, Next.js |
+| Backend | Node.js |
+| Base de datos | [MySQL] |
+| Comunicación | HTTP (Fetch) y WebSockets ([Socket.io / ws]) |
+| Control de versiones | Git y GitHub |
+
+2026-TPF-Gxx/
+├── frontend/
+│   ├── .gitignore
+│   ├── public/
+│   └── src/
+│       ├── app/
+│       ├── components/
+│       └── hooks/
+│           └── useSocket.js
+├── backend/
+│   ├── .gitignore
+│   ├── index.js
+│   ├── package.json
+│   └── modulos/
+│       └── mysql.js
+├── docs/
+│      ├── diagrama/
+│         ├── DER (.drawio / .png / .pdf)
+│      ├── img/
+│           
+│   └── script.sql
+└── README.md

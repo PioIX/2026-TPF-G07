@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import styles from "./registro.module.css";
+import styles from "./login.module.css";
 
-export default function RegistroPage() {
+export default function LoginPage() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    nombre: "",
     correo: "",
     contraseña: "",
   });
@@ -16,7 +15,7 @@ export default function RegistroPage() {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    document.title = "Petit Bakery - Registro";
+    document.title = "Petit Bakery - Iniciar Sesión";
   }, []);
 
   const handleChange = (e) => {
@@ -32,8 +31,7 @@ export default function RegistroPage() {
     setEnviando(true);
 
     try {
-      // Ajustá la URL y los nombres de los campos a los de tu backend
-      const respuesta = await fetch("http://localhost:4000/registro", {
+      const respuesta = await fetch("http://localhost:4000/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -44,13 +42,14 @@ export default function RegistroPage() {
       const data = await respuesta.json();
       console.log("Respuesta del backend:", data);
 
-      if (respuesta.ok) {
-        router.push("/login");
+      if (data.message === "Inicio de sesion hecho") {
+        localStorage.setItem("id_usuario", data.id_usuario);
+        router.push("/chats"); // cambiá la ruta a la pantalla que sigue en tu app
       } else {
-        setMensajeError(data.message || "No se pudo crear la cuenta.");
+        setMensajeError(data.message || "Correo o contraseña incorrectos.");
       }
     } catch (error) {
-      console.error("Error al registrarse:", error);
+      console.error("Error al iniciar sesión:", error);
       setMensajeError("No se pudo conectar con el servidor backend.");
     } finally {
       setEnviando(false);
@@ -63,19 +62,7 @@ export default function RegistroPage() {
       <div className={styles.escena}>
         <div className={styles.panel}>
           <form className={styles.form} onSubmit={handleSubmit}>
-            <h1 className={styles.titulo}>Crear cuenta</h1>
-
-            <input
-              className={styles.input}
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              placeholder="Nombre"
-              aria-label="Nombre"
-              autoComplete="name"
-              required
-            />
+            <h1 className={styles.titulo}>Iniciar sesión</h1>
 
             <input
               className={styles.input}
@@ -97,7 +84,7 @@ export default function RegistroPage() {
               onChange={handleChange}
               placeholder="Contraseña"
               aria-label="Contraseña"
-              autoComplete="new-password"
+              autoComplete="current-password"
               required
             />
 
@@ -105,18 +92,18 @@ export default function RegistroPage() {
 
             <button type="submit" className={styles.boton} disabled={enviando}>
               <span className={styles.corazon} aria-hidden="true">♥</span>
-              {enviando ? "Creando..." : "Registrarse"}
+              {enviando ? "Entrando..." : "Entrar"}
               <span className={styles.corazon} aria-hidden="true">♥</span>
             </button>
 
             <p className={styles.cambioVista}>
-              ¿Ya tenés cuenta?{" "}
+              ¿No tenés cuenta?{" "}
               <button
                 type="button"
                 className={styles.enlace}
-                onClick={() => router.push("/login")}
+                onClick={() => router.push("/registro")}
               >
-                Iniciá sesión
+                Registrate acá
               </button>
             </p>
           </form>
