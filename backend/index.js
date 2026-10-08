@@ -138,12 +138,13 @@ app.post("/registro", async function (req, res) {
 // LOGIN:
 ///////////////////////
 
-
 app.post("/login", async function (req, res) {
   try {
-    console.log("Datos recibidos en sesión:", req.body);
-    let respuesta = await realizarQuery(
-      `SELECT * FROM UsuariosBakery WHERE mail = "${req.body.mail}" AND contraseña = "${req.body.contraseña}";`
+    const { mail, contraseña } = req.body;
+
+    const respuesta = await realizarQuery(
+      "SELECT * FROM UsuariosBakery WHERE mail = ? AND contraseña = ?",
+      [mail, contraseña]
     );
 
     if (respuesta.length > 0) {
@@ -151,6 +152,7 @@ app.post("/login", async function (req, res) {
 
       req.session.user = {
         id: idDetectado,
+        id_usuario: idDetectado, // para que el socket lo encuentre con este nombre
         nombre: respuesta[0].nombre,
         mail: respuesta[0].mail,
       };
@@ -158,16 +160,14 @@ app.post("/login", async function (req, res) {
       res.send({
         message: "Inicio de sesion hecho",
         id: idDetectado,
+        id_usuario: idDetectado,
+        nombre: respuesta[0].nombre,
       });
     } else {
-      res.send({
-        message: "Usuario inexistente",
-      });
+      res.send({ message: "Usuario inexistente" });
     }
   } catch (error) {
-    res
-      .status(500)
-      .send({ message: "Error al Conectarse", error: error.message });
+    res.status(500).send({ message: "Error al Conectarse", error: error.message });
   }
 });
 

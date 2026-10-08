@@ -1,0 +1,48 @@
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+
+  background-image: url("/selector-sala.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Caja con la misma proporción de la imagen (1672x941) y el mismo tamaño que
+   tiene con "cover". Lo que va adentro se mide en % de la imagen. */
+.escena {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100vw, calc(100vh * 1672 / 941));
+  height: max(100vh, calc(100vw * 941 / 1672));
+  transform: translate(-50%, -50%);
+}
+
+/* Frente de madera del mostrador (x 37%-87%, y 79%-100% de la imagen).
+   El componente Button usa font-size: 1.3em, así que el tamaño base
+   se define acá y crece junto con la imagen. */
+.botones {
+  position: absolute;
+  left: 43.5%;
+  width: 37%;
+  top: 80.5%;
+  height: 12%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3%;
+  font-size: calc(max(100vw, 100vh * 1672 / 941) * 0.0127);
+}
+
+.item {
+  flex: 1;
+}
+
+/* Saca el margin-top que trae el Button para que queden alineados */
+.item > button {
+  margin-top: 0;
+  white-space: nowrap;
+}
