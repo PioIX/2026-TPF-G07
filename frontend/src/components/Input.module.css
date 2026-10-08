@@ -1,20 +1,27 @@
-.campo {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 12px;
-    text-align: left;
-}
-
-.label {
-    font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 4px;
-}
-
+/* ===== Inputs ===== */
 .input {
-    padding: 8px 12px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7em 1.2em;
+  font-family: inherit;
+  font-size: 1.1em;
+  color: #7a4a2b;
+  background: #fffaf2;
+  border: 3px solid #e3b98a;
+  border-radius: 999px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input::placeholder {
+  color: #c9a98a;
+}
+
+.input:hover {
+  border-color: #f2a39e;
+}
+
+.input:focus {
+  border-color: #f08a85;
+  box-shadow: 0 0 0 4px rgba(240, 138, 133, 0.25);
 }

@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./login.module.css";
+import Inputstyles from "@/components/Input.module.css";
+import Input from "@/components/Input";
+import Button from "@/components/Button";
+import Buttonstyle from "@/components/Button.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    correo: "",
+    mail: "",
     contraseña: "",
   });
   const [mensajeError, setMensajeError] = useState("");
@@ -31,6 +35,7 @@ export default function LoginPage() {
     setEnviando(true);
 
     try {
+      console.log(formData)
       const respuesta = await fetch("http://localhost:4000/login", {
         method: "POST",
         headers: {
@@ -43,7 +48,7 @@ export default function LoginPage() {
       console.log("Respuesta del backend:", data);
 
       if (data.message === "Inicio de sesion hecho") {
-        localStorage.setItem("id_usuario", data.id_usuario);
+        localStorage.setItem("id", data.id);
         router.push("/chats"); // cambiá la ruta a la pantalla que sigue en tu app
       } else {
         setMensajeError(data.message || "Correo o contraseña incorrectos.");
@@ -64,11 +69,11 @@ export default function LoginPage() {
           <form className={styles.form} onSubmit={handleSubmit}>
             <h1 className={styles.titulo}>Iniciar sesión</h1>
 
-            <input
-              className={styles.input}
+            <Input
+              className={Inputstyles.input}
               type="email"
-              name="correo"
-              value={formData.correo}
+              name="mail"
+              value={formData.mail}
               onChange={handleChange}
               placeholder="Correo electrónico"
               aria-label="Correo electrónico"
@@ -76,8 +81,8 @@ export default function LoginPage() {
               required
             />
 
-            <input
-              className={styles.input}
+            <Input
+              className={Inputstyles.input}
               type="password"
               name="contraseña"
               value={formData.contraseña}
@@ -90,11 +95,19 @@ export default function LoginPage() {
 
             {mensajeError && <p className={styles.error}>{mensajeError}</p>}
 
-            <button type="submit" className={styles.boton} disabled={enviando}>
-              <span className={styles.corazon} aria-hidden="true">♥</span>
+            <Button
+              type="submit"
+              className={Buttonstyle.boton}
+              disabled={enviando}
+            >
+              <span className={styles.corazon} aria-hidden="true">
+                ♥
+              </span>
               {enviando ? "Entrando..." : "Entrar"}
-              <span className={styles.corazon} aria-hidden="true">♥</span>
-            </button>
+              <span className={styles.corazon} aria-hidden="true">
+                ♥
+              </span>
+            </Button>
 
             <p className={styles.cambioVista}>
               ¿No tenés cuenta?{" "}

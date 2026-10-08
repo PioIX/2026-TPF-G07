@@ -52,106 +52,11 @@
   color: #7a4a2b;
 }
 
-/* ===== Inputs ===== */
-.input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.7em 1.2em;
-  font-family: inherit;
-  font-size: 1.1em;
-  color: #7a4a2b;
-  background: #fffaf2;
-  border: 3px solid #e3b98a;
-  border-radius: 999px;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.input::placeholder {
-  color: #c9a98a;
-}
-
-.input:hover {
-  border-color: #f2a39e;
-}
-
-.input:focus {
-  border-color: #f08a85;
-  box-shadow: 0 0 0 4px rgba(240, 138, 133, 0.25);
-}
-
 .error {
   margin: 0;
   text-align: center;
   font-size: 0.95em;
   color: #c24f4c;
-}
-
-/* ===== Botón (mismo estilo que el de la pantalla de inicio) ===== */
-.boton {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  margin-top: 0.3em;
-  padding: 0.55em 1.2em;
-  font-family: inherit;
-  font-size: 1.3em;
-  font-weight: 600;
-  color: #fff4e6;
-  background: #f08a85;
-  border: 3px solid #d9625f;
-  border-radius: 999px;
-  box-shadow: 0 5px 0 #c24f4c;
-  cursor: pointer;
-  transition:
-    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.25s ease,
-    background 0.2s ease;
-}
-
-.boton::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 35%;
-  height: 100%;
-  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-  transform: skewX(-20deg);
-  pointer-events: none;
-}
-
-.boton:hover:not(:disabled) {
-  background: #f39a95;
-  transform: translateY(-4px) scale(1.04);
-  box-shadow: 0 9px 0 #c24f4c, 0 14px 20px rgba(122, 74, 43, 0.3);
-}
-
-.boton:hover:not(:disabled)::after {
-  left: 130%;
-  transition: left 0.7s ease;
-}
-
-.boton:hover:not(:disabled) .corazon {
-  animation: latido 0.7s ease-in-out infinite;
-}
-
-.boton:active:not(:disabled) {
-  transform: translateY(2px) scale(0.98);
-  box-shadow: 0 2px 0 #c24f4c;
-}
-
-.boton:focus-visible {
-  outline: 3px solid #7a4a2b;
-  outline-offset: 3px;
-}
-
-.boton:disabled {
-  opacity: 0.7;
-  cursor: wait;
 }
 
 .corazon {

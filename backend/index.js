@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
 const { Server } = require("socket.io");
-const { realizarQuery } = require('./modulo/mysql');
+const { realizarQuery } = require("./modulo/mysql");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -47,10 +47,7 @@ let contador = 0;
 io.on("connection", (socket) => {
   const req = socket.request;
   socket.on("joinRoom", (data) => {
-    if (
-      req.session.room != undefined &&
-      req.session.room.length > 0
-    ) {
+    if (req.session.room != undefined && req.session.room.length > 0) {
       socket.leave(req.session.room);
     }
 
@@ -69,17 +66,22 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", async (data) => {
     try {
       const idChat = req.session.room || data.id_chat;
-      const idUsuario = req.session.user ? req.session.user.id_usuario : data.id_usuario;
+      const idUsuario = req.session.user
+        ? req.session.user.id_usuario
+        : data.id_usuario;
       const textoMensaje = data.message;
 
       if (idChat && idUsuario && textoMensaje) {
-        await realizarQuery('INSERT INTO Mensajes(id_chat,id_usuario,texto,hora_enviada) VALUES(?,?,?, NOW())', [idChat, idUsuario, textoMensaje]);
+        await realizarQuery(
+          "INSERT INTO Mensajes(id_chat,id_usuario,texto,hora_enviada) VALUES(?,?,?, NOW())",
+          [idChat, idUsuario, textoMensaje]
+        );
       }
 
       io.to(idChat).emit("newMessage", {
         room: idChat,
         message: textoMensaje,
-        id_usuario: idUsuario
+        id_usuario: idUsuario,
       });
     } catch (error) {
       console.error("Error al persistir mensaje por socket:", error);
@@ -95,13 +97,18 @@ io.on("connection", (socket) => {
     console.log("Disconnect");
   });
 });
-app.post("/register", async function (req, res) {
+
+////////////////////
+// REGISTRO
+////////////////////
+
+app.post("/registro", async function (req, res) {
   try {
-    const { nombre, correo, contraseña, foto } = req.body;
+    const { nombre, mail, contraseña} = req.body;
 
     let respuesta = await realizarQuery(
-      "SELECT * FROM UsuariosWhatsapp WHERE correo = ?",
-      [correo]
+      "SELECT * FROM UsuariosBakery WHERE mail = ?",
+      [mail]
     );
 
     if (respuesta && respuesta.length > 0) {
@@ -109,10 +116,10 @@ app.post("/register", async function (req, res) {
     }
 
     let resultado = await realizarQuery(
-      "INSERT INTO UsuariosWhatsapp(nombre, correo, contraseña, foto) VALUES (?, ?, ?, ?)",
-      [nombre, correo, contraseña, foto || null]
+      "INSERT INTO UsuariosBakery (nombre, mail, contraseña) VALUES (?, ?, ?)",
+      [nombre, mail, contraseña || null]
     );
-
+      
     res.send({
       ok: true,
       message: "Usuario Agregado",
@@ -126,32 +133,41 @@ app.post("/register", async function (req, res) {
     });
   }
 });
+
+////////////////////////
 // LOGIN:
+///////////////////////
+
+
 app.post("/login", async function (req, res) {
   try {
     console.log("Datos recibidos en sesión:", req.body);
-    let respuesta = await realizarQuery(`SELECT * FROM UsuariosWhatsapp WHERE correo = "${req.body.correo}" AND contraseña = "${req.body.contraseña}";`);
+    let respuesta = await realizarQuery(
+      `SELECT * FROM UsuariosBakery WHERE mail = "${req.body.mail}" AND contraseña = "${req.body.contraseña}";`
+    );
 
     if (respuesta.length > 0) {
-      const idDetectado = respuesta[0].id_usuario;
+      const idDetectado = respuesta[0].id;
 
       req.session.user = {
-        id_usuario: idDetectado,
+        id: idDetectado,
         nombre: respuesta[0].nombre,
-        correo: respuesta[0].correo,
+        mail: respuesta[0].mail,
       };
 
       res.send({
         message: "Inicio de sesion hecho",
-        id_usuario: idDetectado,
+        id: idDetectado,
       });
     } else {
       res.send({
-        message: "Usuario inexistente"
+        message: "Usuario inexistente",
       });
     }
   } catch (error) {
-    res.status(500).send({ message: "Error al obtener historial de mensajes", error: error.message });
+    res
+      .status(500)
+      .send({ message: "Error al Conectarse", error: error.message });
   }
 });
 
@@ -207,7 +223,6 @@ app.get("/chats/:id_usuario", async function (req, res) {
   }
 });
 
-
 // CREACION DE CHAT INDIVIDUAL:
 app.post("/chat/individual", async function (req, res) {
   try {
@@ -221,32 +236,29 @@ app.post("/chat/individual", async function (req, res) {
 
     if (destinatarios.length === 0) {
       return res.status(404).send({
-        message: "El usuario destinatario no existe"
+        message: "El usuario destinatario no existe",
       });
     }
 
     const id_destinatario = destinatarios[0].id_usuario;
 
-    
     if (Number(id_usuario_creador) === Number(id_destinatario)) {
       return res.status(400).send({
-        message: "No puedes crear un chat individual contigo mismo"
+        message: "No puedes crear un chat individual contigo mismo",
       });
     }
 
-   
     const resultadoChat = await realizarQuery(
       `INSERT INTO Chats (nom_grupo) VALUES (NULL)`
     );
     const id_chat = resultadoChat.insertId;
-
 
     await realizarQuery(
       `INSERT INTO UsuarioEnChats (id_chat, id_usuario, foto_grupo) VALUES (?, ?, ?)`,
       [id_chat, id_usuario_creador, ""]
     );
 
-    //Insertar al DESTINATARIO en UsuarioEnChats 
+    //Insertar al DESTINATARIO en UsuarioEnChats
     await realizarQuery(
       `INSERT INTO UsuarioEnChats (id_chat, id_usuario, foto_grupo) VALUES (?, ?, ?)`,
       [id_chat, id_destinatario, ""]
@@ -255,16 +267,15 @@ app.post("/chat/individual", async function (req, res) {
     res.send({
       ok: true,
       message: "Chat individual creado con éxito",
-      id_chat
+      id_chat,
     });
   } catch (error) {
     res.status(500).send({
       message: "Error al crear chat individual",
-      error: error.message
+      error: error.message,
     });
   }
 });
-
 
 // CREACION DE CHAT DE GRUPO:
 app.post("/chat/grupal", async function (req, res) {
@@ -282,7 +293,9 @@ app.post("/chat/grupal", async function (req, res) {
       );
 
       if (usuario.length === 0) {
-        return res.status(404).send({ message: `El usuario ${correo} no existe` });
+        return res
+          .status(404)
+          .send({ message: `El usuario ${correo} no existe` });
       }
 
       // Evitamos agregar al creador dos veces si su correo vino en el array
@@ -314,12 +327,12 @@ app.post("/chat/grupal", async function (req, res) {
     res.send({
       ok: true,
       message: "Chat grupal creado con éxito",
-      id_chat
+      id_chat,
     });
   } catch (error) {
     res.status(500).send({
       message: "Error al crear chat grupal",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -328,16 +341,21 @@ app.post("/chat/grupal", async function (req, res) {
 app.get("/mensajes/:id_chat", async function (req, res) {
   try {
     const { id_chat } = req.params;
-    const mensajes = await realizarQuery(`
+    const mensajes = await realizarQuery(
+      `
         SELECT m.id_mensaje, m.id_chat, m.id_usuario, u.nombre AS remitente, m.texto, m.hora_enviada
         FROM Mensajes m
         JOIN UsuariosWhatsapp u ON m.id_usuario = u.id_usuario
         WHERE m.id_chat = ?
         ORDER BY m.id_mensaje ASC
-    `, [id_chat]);
+    `,
+      [id_chat]
+    );
 
     res.send({ ok: true, mensajes });
   } catch (error) {
-    res.status(500).send({ message: "Error al obtener historial", error: error.message });
+    res
+      .status(500)
+      .send({ message: "Error al obtener historial", error: error.message });
   }
 });
