@@ -133,21 +133,21 @@ app.post("/login", async function (req, res) {
   try {
     console.log("Datos recibidos en sesión:", req.body);
     let respuesta = await realizarQuery(
-      `SELECT * FROM UsuariosWhatsapp WHERE correo = "${req.body.correo}" AND contraseña = "${req.body.contraseña}";`
+      `SELECT * FROM UsuariosBakery WHERE mail = "${req.body.mail}" AND contraseña = "${req.body.contraseña}";`
     );
 
     if (respuesta.length > 0) {
-      const idDetectado = respuesta[0].id_usuario;
+      const idDetectado = respuesta[0].id;
 
       req.session.user = {
-        id_usuario: idDetectado,
+        id: idDetectado,
         nombre: respuesta[0].nombre,
-        correo: respuesta[0].correo,
+        mail: respuesta[0].mail,
       };
 
       res.send({
         message: "Inicio de sesion hecho",
-        id_usuario: idDetectado,
+        id: idDetectado,
       });
     } else {
       res.send({

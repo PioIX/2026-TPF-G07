@@ -12,7 +12,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    correo: "",
+    mail: "",
     contraseña: "",
   });
   const [mensajeError, setMensajeError] = useState("");
@@ -35,6 +35,7 @@ export default function LoginPage() {
     setEnviando(true);
 
     try {
+      console.log(formData)
       const respuesta = await fetch("http://localhost:4000/login", {
         method: "POST",
         headers: {
@@ -47,7 +48,7 @@ export default function LoginPage() {
       console.log("Respuesta del backend:", data);
 
       if (data.message === "Inicio de sesion hecho") {
-        localStorage.setItem("id_usuario", data.id_usuario);
+        localStorage.setItem("id", data.id);
         router.push("/chats"); // cambiá la ruta a la pantalla que sigue en tu app
       } else {
         setMensajeError(data.message || "Correo o contraseña incorrectos.");
@@ -71,8 +72,8 @@ export default function LoginPage() {
             <Input
               className={Inputstyles.input}
               type="email"
-              name="correo"
-              value={formData.correo}
+              name="mail"
+              value={formData.mail}
               onChange={handleChange}
               placeholder="Correo electrónico"
               aria-label="Correo electrónico"
