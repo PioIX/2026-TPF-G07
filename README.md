@@ -57,8 +57,9 @@ El objetivo del juego es crear los pasteles más rápido que el oponente
 | AUTENTICACION | login y registro, usuario admin |  [SofiaStreuli] | 10/10 |
 | BACKEND BASE | Servidor en `index.js`, rutas HTTP | [Integrante] | ?/10 |
 | FRONTEND BASE | Estructura Next.js, páginas, componentes, uso de Fetch | [Integrante] | ?/10 |
-| BASE DE DATOS |creacion de tablas, relacion de entidad | [Integrante] | ?/11 |
-| TIEMPO REAL | Servidor WebSocket y hook `useSocket.js` | [Integrante] | ?/11 |
+| BASE DE DATOS |creacion de tablas, relacion de entidad | [cgonzalescerezal] | ?/10 |
+| TIEMPO REAL | Servidor WebSocket y hook `useSocket.js` | [SofiaStreuli] | 15/10 |
+| Salas| Creacion de salas | [SofiaStreuli] | 15/10 |
 | Cierre | Pruebas, correcciones, DER final, usuario admin para docentes | Todos | 17/11 |
 | Presentación | Preparación de la demo para la Expo Pio | Todos | 19/11 |
 
