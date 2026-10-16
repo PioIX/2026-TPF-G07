@@ -49,7 +49,7 @@ export default function LoginPage() {
 
       if (data.message === "Inicio de sesion hecho") {
         localStorage.setItem("id", data.id);
-        router.push("/chats"); // cambiá la ruta a la pantalla que sigue en tu app
+        router.push("/elegirSala"); // cambiá la ruta a la pantalla que sigue en tu app
       } else {
         setMensajeError(data.message || "Correo o contraseña incorrectos.");
       }

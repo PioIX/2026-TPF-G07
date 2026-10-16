@@ -3,11 +3,6 @@
   overflow: hidden;
   width: 100vw;
   height: 100vh;
-
-  background-image: url("/salaEspera.png");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
 }
 
 
@@ -23,8 +18,13 @@
     circle,
     #fff4e4 1px,
     transparent 1px
-  );
-  background-size: 24px 24px;
+    );
+    background-size: 24px 24px;
+    
+      background-image: url("../../../public/salaEspera.png");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
 }
 
 .panel {
