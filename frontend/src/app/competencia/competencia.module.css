@@ -4,17 +4,44 @@
   width: 100vw;
   height: 100vh;
 
+  display: flex;
+  flex-direction: column;
+  
+  /* Opción A: Alinea los elementos en la parte inferior */
+  justify-content: flex-end; 
+  align-items: center;
+  gap: 15px;
+
+  /* Agrega un margen inferior para que no peguen al borde de abajo */
+  padding-bottom: 60px; 
+
   background-image: url("/pasoEmpezar.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
-
-.boton-invisible {
-  background: transparent !important;
-  border: none !important;
-  color: transparent !important;
-  outline: none !important;
-  box-shadow: none !important;
+.btn-imagen {
+  background: transparent;
+  border: none;
+  padding: 0;
   cursor: pointer;
+  outline: none;
+  display: inline-block;
+  transition: transform 0.2s ease, filter 0.2s ease; 
+}
+
+.btn-imagen img {
+  width: 420px; /* Tamaño ajustado para que se aprecien bien en vertical */
+  height: auto;  
+  display: block;
+}
+
+/* Efectos al pasar el cursor o hacer clic */
+.btn-imagen:hover {
+  transform: scale(1.05); 
+  filter: brightness(1.1); 
+}
+
+.btn-imagen:active {
+  transform: scale(0.95);
 }
