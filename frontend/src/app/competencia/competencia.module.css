@@ -1,0 +1,20 @@
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+
+  background-image: url("/pasoEmpezar.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.boton-invisible {
+  background: transparent !important;
+  border: none !important;
+  color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
