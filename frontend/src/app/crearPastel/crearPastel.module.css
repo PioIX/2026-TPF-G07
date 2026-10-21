@@ -10,6 +10,12 @@
   background-repeat: no-repeat;
 }
 
+.gameMezcla {
+  background-image: none;
+  background-color: #b8763a;
+}
+
+/* ---------- Escena 1: bowl como botón ---------- */
 .bowl {
   position: absolute;
   left: 50%;
@@ -39,4 +45,40 @@
 
 .bowl:active {
   transform: translate(-50%, -50%) scale(0.95);
+}
+
+/* ---------- Escena 2: mesada con ingredientes ---------- */
+.escena {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: max(100vw, calc(100vh * 1885 / 834));
+  aspect-ratio: 1885 / 834;
+
+  background-image: url("/mesada.png");
+  background-size: 100% 100%;
+}
+
+.objeto {
+  position: absolute;
+  transform: translate(-50%, -50%); /* x e y son el centro del objeto */
+  height: auto;
+  user-select: none;
+  cursor: pointer;
+  filter: drop-shadow(3px 5px 4px rgba(0, 0, 0, 0.3));
+
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+/* al pasar el cursor: sube, se agranda y se inclina un poquito */
+.objeto:hover {
+  transform: translate(-50%, calc(-50% - 8px)) scale(1.1) rotate(-3deg);
+  filter: drop-shadow(5px 12px 8px rgba(0, 0, 0, 0.35)) brightness(1.08);
+}
+
+/* al hacer clic: se "hunde" un poco */
+.objeto:active {
+  transform: translate(-50%, -50%) scale(0.96);
 }
