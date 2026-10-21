@@ -1,0 +1,137 @@
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+
+.fondo {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #f8e2c6;
+  background-image: radial-gradient(
+    circle,
+    #fff4e4 1px,
+    transparent 1px
+    );
+    background-size: 24px 24px;
+    
+      background-image: url("../../../public/salaEspera.png");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+}
+
+.panel {
+  width: min(100%, 520px);
+  box-sizing: border-box;
+  padding: 34px 28px;
+  text-align: center;
+  color: #82482e;
+  background: #fff0d9;
+  border: 5px solid #a96843;
+  border-radius: 38px;
+  box-shadow: 0 8px 0 #d5a06e;
+}
+
+.decoracion {
+  margin-bottom: 8px;
+  color: #ed8585;
+  font-size: 28px;
+}
+
+.panel h1 {
+  margin: 0 0 22px;
+  font-size: 32px;
+}
+
+.etiqueta {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.nombreSala {
+  overflow-wrap: anywhere;
+  margin: 0;
+  padding: 14px;
+  border: 3px solid #e8b987;
+  border-radius: 22px;
+  background: #fffaf3;
+  font-size: 23px;
+}
+
+.jugadores {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 24px;
+  background: #fff8ec;
+}
+
+.jugadores h3 {
+  margin: 0 0 14px;
+}
+
+.jugador {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 9px;
+  padding: 12px;
+  border: 2px solid #edc9a2;
+  border-radius: 16px;
+  background: white;
+  text-align: left;
+}
+
+.jugador small {
+  margin-left: auto;
+  color: #bd6969;
+  font-weight: bold;
+}
+
+.estado {
+  margin: 22px 0 16px;
+  font-weight: bold;
+}
+
+.boton,
+.volver {
+  width: 100%;
+  padding: 14px;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.boton {
+  border: 3px solid #d96868;
+  background: #f28a8a;
+  box-shadow: 0 4px 0 #d96868;
+  color: white;
+}
+
+.boton:disabled {
+  border-color: #c9b5a2;
+  background: #d9c9ba;
+  box-shadow: 0 4px 0 #b8a492;
+  cursor: not-allowed;
+}
+
+.volver {
+  margin-top: 18px;
+  border: 2px solid #e8b987;
+  background: #fffaf3;
+  color: #82482e;
+}
+
+.mensaje {
+  margin-top: 16px;
+  color: #b84c4c;
+  font-weight: bold;
+}

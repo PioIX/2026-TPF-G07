@@ -44,8 +44,203 @@ io.use((socket, next) => {
 
 let contador = 0;
 
+// Salas de Petit Bakery. Cada sala va a tener un identificador, un nombre, una contraseña, el creador, los jugadores conectados y el estado de la competencia.
+const salas = new Map();
+
+function enviarSalas() {
+  const lista = Array.from(salas.values())
+    .filter((sala) => !sala.empezada)
+    .map((sala) => ({
+      id: sala.id,
+      nombre: sala.nombre,
+      jugadores: sala.jugadores.length,
+      minimoJugadores: 2,
+    }));
+
+  io.emit("listaSalas", lista);
+}
+
 io.on("connection", (socket) => {
+  console.log("Cliente conectado:", socket.id);
   const req = socket.request;
+  
+  socket.on("pedirEstadoSala", ({ id }) => {
+    const sala = salas.get(id);
+
+    if (!sala || !socket.rooms.has(id)) {
+      return socket.emit(
+        "errorSala",
+        "No estás conectado a esta sala o ya no existe."
+      );
+    }
+
+    socket.emit("actualizarSala", {
+      id: sala.id,
+      nombre: sala.nombre,
+      creador: sala.creador,
+      jugadores: sala.jugadores,
+      empezada: sala.empezada,
+
+    });
+  });
+
+
+  // CREAR SALA
+  socket.on("crearSala", ({ nombre, contrasena, jugador }) => {
+    nombre = nombre?.trim();
+    jugador = jugador?.trim() || "Pastelero";
+
+    console.log("Solicitud para crear sala:", {
+      nombre,
+      jugador,
+      socketId: socket.id,
+    });
+
+    if (!nombre || !contrasena) {
+      return socket.emit("errorSala", "Completá todos los campos.");
+    }
+
+    const existe = [...salas.values()].some(
+      (sala) =>
+        sala.nombre.toLowerCase() === nombre.toLowerCase()
+    );
+
+    if (existe) {
+      return socket.emit(
+        "errorSala",
+        "Ya existe una sala con ese nombre."
+      );
+    }
+
+    const id = nombre.toLowerCase();
+
+    const sala = {
+      id,
+      nombre,
+      contrasena,
+      creador: socket.id,
+      jugadores: [{ id: socket.id, nombre: jugador }],
+      empezada: false,
+    };
+
+    salas.set(id, sala);
+    socket.join(id);
+
+    console.log("Sala creada:", sala.nombre);
+
+    socket.emit("salaCreada", {
+      id: sala.id,
+      nombre: sala.nombre,
+    });
+
+    io.to(id).emit("actualizarSala", {
+      id: sala.id,
+      nombre: sala.nombre,
+      jugadores: sala.jugadores,
+      empezada: sala.empezada,
+      creador: sala.creador
+    });
+
+    enviarSalas();
+  });
+
+  // UNIRSE A UNA SALA EXISTENTE
+  socket.on("unirseSala", ({ id, contrasena, jugador }) => {
+    const sala = salas.get(id?.trim().toLowerCase());
+
+    if (!sala) {
+      return socket.emit("errorSala", "La sala no existe.");
+    }
+
+    if (sala.empezada) {
+      return socket.emit(
+        "errorSala",
+        "La competencia ya comenzó."
+      );
+    }
+
+    if (sala.contrasena !== contrasena) {
+      return socket.emit(
+        "errorSala",
+        "La contraseña es incorrecta."
+      );
+    }
+
+    if (sala.jugadores.some((p) => p.id === socket.id)) {
+      return socket.emit("errorSala", "Ya estás en esta sala.");
+    }
+
+    jugador = jugador?.trim() || "Pastelero";
+
+    sala.jugadores.push({
+      id: socket.id,
+      nombre: jugador,
+    });
+
+    socket.join(sala.id);
+
+    io.to(sala.id).emit("actualizarSala", {
+      id: sala.id,
+      nombre: sala.nombre,
+      jugadores: sala.jugadores,
+      empezada: sala.empezada,
+      creador: sala.creador      
+    });
+
+    socket.emit("salaUnida", {
+      id: sala.id,
+      nombre: sala.nombre,
+    });
+
+    enviarSalas();
+  });
+
+  // PEDIR EL LISTADO DE SALAS
+  socket.on("pedirSalas", () => {
+    const lista = Array.from(salas.values())
+      .filter((sala) => !sala.empezada)
+      .map((sala) => ({
+        id: sala.id,
+        nombre: sala.nombre,
+        jugadores: sala.jugadores.length,
+        minimoJugadores: 2,
+      }));
+
+    socket.emit("listaSalas", lista);
+  });
+
+  // EMPEZAR LA COMPETENCIA
+  socket.on("empezarCompetencia", ({ id }) => {
+    const sala = salas.get(id);
+
+    if (!sala) {
+      return socket.emit("errorSala", "La sala no existe.");
+    }
+
+    if (sala.creador !== socket.id) {
+      return socket.emit(
+        "errorSala",
+        "Solo quien creó la sala puede empezar."
+      );
+    }
+
+    if (sala.jugadores.length < 2) {
+      return socket.emit(
+        "errorSala",
+        "Necesitás al menos 2 jugadores."
+      );
+    }
+
+    sala.empezada = true;
+
+    io.to(sala.id).emit("competenciaIniciada", {
+      id: sala.id,
+      nombre: sala.nombre,
+    });
+
+    enviarSalas();
+  });
+
   socket.on("joinRoom", (data) => {
     if (req.session.room != undefined && req.session.room.length > 0) {
       socket.leave(req.session.room);
@@ -93,9 +288,43 @@ io.on("connection", (socket) => {
     socket.emit("respuestaPersonalizada", { contador });
   });
 
-  socket.on("disconnect", () => {
-    console.log("Disconnect");
-  });
+socket.on("disconnect", () => {
+  console.log("Disconnect:", socket.id);
+
+  for (const [id, sala] of salas.entries()) {
+    const estabaEnSala = sala.jugadores.some(
+      (jugador) => jugador.id === socket.id
+    );
+
+    if (!estabaEnSala) continue;
+
+    sala.jugadores = sala.jugadores.filter(
+      (jugador) => jugador.id !== socket.id
+    );
+
+    // Si se va el creador, eliminamos la sala.
+    if (sala.creador === socket.id) {
+      io.to(id).emit(
+        "errorSala",
+        "El creador salió. La sala se cerró."
+      );
+
+      salas.delete(id);
+      continue;
+    }
+
+    io.to(id).emit("actualizarSala", {
+      id: sala.id,
+      nombre: sala.nombre,
+      jugadores: sala.jugadores,
+      empezada: sala.empezada,
+      creador: sala.creador
+    });
+  }
+
+  enviarSalas();
+});
+
 });
 
 ////////////////////

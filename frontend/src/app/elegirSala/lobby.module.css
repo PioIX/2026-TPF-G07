@@ -10,20 +10,102 @@
   background-repeat: no-repeat;
 }
 
-/* Caja con la misma proporción de la imagen (1672x941) y el mismo tamaño que
-   tiene con "cover". Lo que va adentro se mide en % de la imagen. */
-.escena {
+.fondoModal {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: max(100vw, calc(100vh * 1672 / 941));
-  height: max(100vh, calc(100vw * 941 / 1672));
-  transform: translate(-50%, -50%);
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(65, 37, 25, 0.48);
 }
 
-/* Frente de madera del mostrador (x 37%-87%, y 79%-100% de la imagen).
-   El componente Button usa font-size: 1.3em, así que el tamaño base
-   se define acá y crece junto con la imagen. */
+.panelSala {
+  position: relative;
+  width: min(100%, 430px);
+  padding: 32px 26px 24px;
+  border: 5px solid #9c603b;
+  border-radius: 35px;
+  background: #fff0d9;
+  box-shadow: 0 7px 0 #d9a477;
+  color: #82482e;
+  text-align: center;
+}
+
+.panelSala h2 {
+  margin: 0 0 22px;
+  font-size: 28px;
+}
+
+.cerrar {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  border: none;
+  background: transparent;
+  color: #82482e;
+  font-size: 32px;
+  cursor: pointer;
+}
+
+.panelSala form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.panelSala label {
+  margin-top: 5px;
+  font-weight: 600;
+}
+
+.panelSala input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 16px;
+  border: 3px solid #e8b987;
+  border-radius: 24px;
+  outline: none;
+  background: #fffaf3;
+  color: #75452f;
+  font-size: 15px;
+}
+
+.panelSala input:focus {
+  border-color: #ed8989;
+}
+
+.botonSala {
+  margin-top: 12px;
+  padding: 13px;
+  border: 3px solid #d96868;
+  border-radius: 24px;
+  background: #f28a8a;
+  box-shadow: 0 4px 0 #d96868;
+  color: white;
+  font-size: 17px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.botonSala:hover {
+  background: #ed7777;
+}
+
+.mensaje {
+  margin-top: 18px;
+  color: #b84c4c;
+  font-weight: 600;
+}
+
+.infoJugadores {
+  margin-top: 20px;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
 .botones {
   position: absolute;
   left: 43.5%;
@@ -37,12 +119,49 @@
   font-size: calc(max(100vw, 100vh * 1672 / 941) * 0.0127);
 }
 
-.item {
-  flex: 1;
+
+
+.listaSalas {
+  width: min(90%, 560px);
+  margin: 24px auto;
+  padding: 22px;
+  box-sizing: border-box;
+  border: 4px solid #a96843;
+  border-radius: 28px;
+  background: #fff0d9;
+  color: #82482e;
+  box-shadow: 0 5px 0 #d5a06e;
 }
 
-/* Saca el margin-top que trae el Button para que queden alineados */
-.item > button {
+.listaSalas h2 {
   margin-top: 0;
-  white-space: nowrap;
+  text-align: center;
+}
+
+.itemSala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 2px solid #e8b987;
+  border-radius: 18px;
+  background: #fffaf3;
+}
+
+.itemSala strong {
+  overflow-wrap: anywhere;
+}
+
+.itemSala p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.itemSala .botonSala {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 10px 16px;
 }

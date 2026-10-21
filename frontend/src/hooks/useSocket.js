@@ -1,33 +1,50 @@
-import { useState, useEffect } from 'react';
-import io from 'socket.io-client';
+"use client";
 
-const useSocket = (options = { withCredentials: false }, serverUrl = "ws://localhost:4000/") => { //ACÁ PONER LA IP DEL BACK
-  const [socket, setSocket] = useState(null);
-  const [isConnected, setIsConnected] = useState(false);
+import { useState, useEffect } from "react";
+import io from "socket.io-client";
+
+let socketCompartido = null;
+
+const useSocket = (
+  options = { withCredentials: true },
+  serverUrl = "http://localhost:4000"
+) => {
+  const [socket, setSocket] = useState(socketCompartido);
+  const [isConnected, setIsConnected] = useState(
+    socketCompartido?.connected || false
+  );
 
   useEffect(() => {
-    // Crear una conexión con el backend usando Socket.IO
-    const socketIo = io(serverUrl, options);
+    if (!socketCompartido) {
+      socketCompartido = io(serverUrl, {
+        ...options,
+        withCredentials: true,
+      });
+    }
 
-    // Actualizar el estado de la conexión
-    socketIo.on('connect', () => {
+    const socketIo = socketCompartido;
+
+    function conectar() {
       setIsConnected(true);
-      console.log('WebSocket connectado.');
-    });
+      console.log("Socket conectado:", socketIo.id);
+    }
 
-    socketIo.on('disconnect', () => {
+    function desconectar() {
       setIsConnected(false);
-      console.log('WebSocket desconectado');
-    });
+      console.log("Socket desconectado");
+    }
 
-    // Guardar la instancia del socket en el estado
+    socketIo.on("connect", conectar);
+    socketIo.on("disconnect", desconectar);
+
     setSocket(socketIo);
+    setIsConnected(socketIo.connected);
 
-    // Limpiar la conexión cuando el componente se desmonte
     return () => {
-      socketIo.disconnect();
+      socketIo.off("connect", conectar);
+      socketIo.off("disconnect", desconectar);
     };
-  }, [serverUrl, JSON.stringify(options)]);
+  }, [serverUrl]);
 
   return { socket, isConnected };
 };
