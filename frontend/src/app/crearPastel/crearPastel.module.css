@@ -1,0 +1,42 @@
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+
+  background-image: url("/crear-Mescla.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.bowl {
+  position: absolute;
+  left: 50%;
+  top: 65%;
+  transform: translate(-50%, -50%);
+  width: 20vw;
+
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.bowl img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.bowl:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+  filter: brightness(1.1);
+}
+
+.bowl:active {
+  transform: translate(-50%, -50%) scale(0.95);
+}
