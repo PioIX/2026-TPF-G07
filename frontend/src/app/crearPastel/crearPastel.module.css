@@ -1,0 +1,198 @@
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+
+  background-image: url("/crear-Mescla.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.gameMezcla {
+  background-image: none;
+  background-color: #b8763a;
+}
+
+/* ---------- Escena 1: bowl como botón ---------- */
+.bowl {
+  position: absolute;
+  left: 50%;
+  top: 65%;
+  transform: translate(-50%, -50%);
+  width: 20vw;
+
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.bowl img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.bowl:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+  filter: brightness(1.1);
+}
+
+.bowl:active {
+  transform: translate(-50%, -50%) scale(0.95);
+}
+
+/* ---------- Escena 2: canvas ---------- */
+.canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  /* cubre la pantalla manteniendo la proporción de mesada.png */
+  width: max(100vw, calc(100vh * 1885 / 834));
+  height: auto;
+  aspect-ratio: 1885 / 834;
+
+  display: block;
+  touch-action: none; /* necesario para arrastrar con el dedo */
+}
+
+/* ---------- Recetario (popup) ---------- */
+/* Cuelga arriba a la derecha, en la zona de la repisa.
+   Todo escala con el alto de la pantalla (--fila). */
+.receta {
+  --fila: clamp(20px, 2.6vh, 30px);
+
+  position: absolute;
+  top: 1.5vh;
+  right: 7vw;
+  z-index: 10;
+  box-sizing: border-box;
+
+  width: clamp(220px, 22vw, 320px);
+  max-width: calc(100vw - 24px);
+  padding: 0 14px 0 42px;
+
+  color: #3b2a1a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(var(--fila) * 0.6);
+
+  /* papel con margen rojo y renglones, como cuaderno */
+  background:
+    linear-gradient(90deg, transparent 31px, #d9534f 31px, #d9534f 33px, transparent 33px),
+    repeating-linear-gradient(#fffdf2 0 calc(var(--fila) - 1px), #e3d9bf calc(var(--fila) - 1px) var(--fila));
+  border: 2px solid #5a3a1c;
+  border-radius: 10px;
+  box-shadow: 0 5px 0 rgba(90, 58, 28, 0.35);
+
+  /* entra cuando el bowl termina de caer sobre el mantel */
+  animation: recetaEntra 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) 0.5s both;
+}
+
+@keyframes recetaEntra {
+  from { opacity: 0; transform: translateY(-24px) rotate(-2deg); }
+  to   { opacity: 1; transform: translateY(0) rotate(0); }
+}
+
+.recetaTitulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 1.15em;
+  line-height: var(--fila);
+}
+
+.recetaCuenta {
+  padding: 0 8px;
+  font-size: 0.72em;
+  line-height: 1.5;
+  color: #fffdf2;
+  background: #3fa34d;
+  border-radius: 999px;
+}
+
+.recetaLista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--fila);
+  color: #6b5640;
+}
+
+.pasoActual {
+  color: #3b2a1a;
+  font-weight: 700;
+}
+
+.pasoHecho .pasoNombre {
+  color: #8a7660;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+/* casillero + tic verde */
+.tic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: calc(var(--fila) * 0.7);
+  height: calc(var(--fila) * 0.7);
+  padding: 1px;
+  color: #fff;
+  background: #fffdf2;
+  border: 2px solid #8a7660;
+  border-radius: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.pasoActual .tic {
+  border-color: #3b2a1a;
+}
+
+.pasoHecho .tic {
+  background: #3fa34d;
+  border-color: #2e7d3a;
+  animation: ticPop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes ticPop {
+  0%   { transform: scale(0.4); }
+  100% { transform: scale(1); }
+}
+
+.recetaFin {
+  margin: 0;
+  font-weight: 700;
+  color: #2e7d3a;
+  line-height: var(--fila);
+}
+
+.soloLectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receta,
+  .pasoHecho .tic {
+    animation: none;
+  }
+}
