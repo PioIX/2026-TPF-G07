@@ -1,0 +1,70 @@
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+
+  background-image: url("/adminFondo.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.botones {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+/* Fondo oscuro semi-transparente */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px); /* Suaviza el fondo al abrir el modal */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+/* Pop-up más grande con estilo madera/pastel */
+.modal {
+  background-color: #f0dbc7; /* Tono crema cálido */
+  border: 6px solid #8b5e3c; /* Borde estilo cartel de madera */
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  width: 90%;
+  max-width: 520px; /* Tamaño más amplio */
+  min-height: 380px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: 1.2rem;
+}
+
+/* Título dentro del pop-up */
+.modalContent h2 {
+  color: #5c3a21; /* Marrón oscuro cálido */
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-weight: bold;
+}
