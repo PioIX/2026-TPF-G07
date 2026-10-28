@@ -441,12 +441,12 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       }
 
       // efecto de mezcla sobre el bowl (si hay bowlMasa.png, al terminar lo dibuja el propio bowl)
-      if (s.bate && !(s.batido && imgs.bowlMasa)) mezclaBowl();
+      if (s.bate && !(s.batido && imgs.moldeVacio)) mezclaBowl();
 
       // molde: cae al centro cuando el bowl ya se fue al costado
-      if (s.moldeT0 && imgs.molde) {
+      if (s.moldeT0 && imgs.moldeVacio) {
         const t = ease(clamp((ahora - s.moldeT0) / 500));
-        sprite(imgs.molde, px(MOLDE.x), py(MOLDE.y), px(MOLDE.w), {
+        sprite(imgs.moldeVacio, px(MOLDE.x), py(MOLDE.y), px(MOLDE.w), {
           alpha: t,
           dy: -60 * (1 - t),
           scale: 0.85 + 0.15 * t,
