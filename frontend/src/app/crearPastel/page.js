@@ -66,9 +66,6 @@ const VUELTAS = 6; // vueltas del batidor durante la mezcla
 /*
  * BOCA del bowl, como fracción del tamaño del bowl en pantalla.
  * AJUSTALA A OJO con DEBUG_BOCA = true (se dibuja una elipse roja).
- *  - y  : altura de la boca respecto al centro del bowl
- *  - rx : semiancho de la boca
- *  - ry : semialto de la boca (menor que rx = perspectiva)
  */
 const BOCA = { y: -0.10, rx: 0.42, ry: 0.32 };
 const SWIRL_K = 0.25; // cuánto gira la masa respecto al batidor (más = más retorcida)
@@ -83,61 +80,54 @@ const BATIDO_CFG = {
 
 /*
  * TRANSICIÓN FINAL (cuando termina de batir):
- *  1) desaparecen el batidor, la elipse roja y los objetos de la mesada
+ *  1) desaparecen el batidor y los objetos de la mesada
  *  2) el bowl (con la masa) se desliza hacia BOWL_LADO
- *  3) aparece el molde (/objetos/moldeVacio.png) en MOLDE
- * Posiciones en % de la escena (centro) y ancho en % del ancho.
+ *  3) el VIDEO de servir la masa se funde encima de la escena.
+ *     El molde NO es una imagen: lo trae el propio video, que arranca con el mantel
+ *     vacío y el bowl a la izquierda (justo donde quedó el bowl del juego).
  */
 const FIN_FADE_MS = 700; // desvanecer batidor + ingredientes
 const BOWL_MOVE_DELAY = 300; // pausa antes de mover el bowl
 const BOWL_MOVE_MS = 900; // duración del deslizamiento
-const BOWL_LADO = { x: 20, y: 58, w: 20 }; // a dónde se va el bowl (a la izquierda)
-const MOLDE = { x: 50, y: 55, w: 48 }; // dónde aparece el molde
+const BOWL_LADO = { x: 20, y: 58, w: 20 }; // a dónde se va el bowl (a la izquierda, sobre el mantel)
 
 /*
- * VERTER LA MASA EN EL MOLDE
- * El bowl (ya en BOWL_LADO) se arrastra hasta la boca del molde y se inclina.
- *  - BOWL_IMG_VERTER : imagen que se muestra mientras rota (/objetos/<nombre>.png)
- *  - VERTER_ANG      : cuánto se inclina, en radianes (1.0 ≈ 57°).
- *                      Si bowlArrastrable.png YA viene inclinada, poné 0.
- *  - LABIO           : borde del bowl por donde sale la masa (fracción del bowl, desde su centro)
- *  - VERTER_DESTINO  : dónde queda ese borde sobre el molde (fracción del molde, desde su centro)
- *  - MOLDE_INT       : interior del molde (trapecio) para recortar el relleno y detectar el soltar
- *  - LLENADO_MAX     : qué tanto sube la masa dentro del molde (0 a 1 de la altura del interior)
- *  - DEBUG_MOLDE     : true dibuja el interior y la zona de soltar para calibrarlos
+ * VIDEO DE SERVIR LA MASA
+ *  - VIDEO_SRC     : ruta del video (ponelo en /public/objetos/servirMezcla.mp4)
+ *  - VIDEO_DELAY   : pausa (ms) entre que el bowl llega al costado y empieza el fundido
+ *  - VIDEO_FADE_MS : fundido de entrada del video sobre la escena. El video se queda
+ *                    quieto en su primer cuadro mientras se funde y recién después
+ *                    se reproduce (así el fundido no se come el comienzo de la acción).
+ *                    Durante ese tiempo el bowl del juego se acomoda (tamaño y lugar)
+ *                    al bowl del video, para que el cambio no se note.
+ *  - VIDEO_K_MAX   : cuánto se puede agrandar el video, como máximo, para calzar el bowl
+ *                    (1 = justo para cubrir el canvas)
+ *  - VIDEO_ALIGN_Y : solo valor de respaldo (0 = se recorta por abajo, 1 = por arriba)
+ *
+ * Al cargar, el video se MUEVE y escala solo para que su bowl (VIDEO_BOWL) caiga sobre el
+ * bowl del juego (BOWL_LADO). El video es 16:9 y el canvas es más ancho, así que sobra
+ * alto: se recorta arriba/abajo.
  */
-const BOWL_IMG_VERTER = "bowlArrastrable";
-const VERTER_MS = 2600;
-// bowlArrastrable.png YA viene inclinada y con la masa cayendo: no hay que rotarla más.
-const VERTER_ANG = 0;
-// Punto de la imagen por donde cae la masa. Por defecto se DETECTA SOLO: es el
-// punto más bajo de bowlArrastrable.png (la punta del chorro).
-// Si queda corrido, ponelo a mano: { x, y } como fracción del ancho/alto de la
-// imagen, desde su centro (x: -0.5 izq … 0.5 der, y: -0.5 arriba … 0.5 abajo).
-const LABIO_MANUAL = null;
-const LABIO = { x: 0.25, y: 0.42 }; // solo se usa si no se puede detectar la punta
-// Dónde cae la punta del chorro sobre el molde (fracción del molde, desde su centro).
-const VERTER_DESTINO = { x: -0.1, y: -0.12 };
-// false: no dibujar el chorro del código (tu imagen ya trae la masa cayendo)
-const CHORRO = false;
-// Interior visible del molde (trapecio que siguen las paredes de papel).
-// Arriba = borde del fondo del molde, abajo = borde delantero.
-const MOLDE_INT = [
-  { x: -0.252, y: -0.431 }, // arriba izquierda
-  { x: 0.253,  y: -0.431 }, // arriba derecha
-  { x: 0.296,  y: 0.236 },  // abajo derecha
-  { x: -0.302, y: 0.236 },  // abajo izquierda
-];
-// Hasta dónde sube la masa (0 = vacío, 1 = hasta el borde de atrás).
-// 0.72 ≈ cubre todo el fondo del molde.
-const LLENADO_MAX = 0.72;
-// Duración del fundido final: la masa animada -> imagen moldeRelleno.png (ms)
-const RELLENO_FADE_MS = 700;
-// Ajuste de moldeRelleno.png para que calce con moldeVacio.png.
-//  - x, y   : desplazamiento, como fracción del molde (0.05 = 5% del ancho/alto)
-//  - escala : 1 = mismo ancho que moldeVacio; 0.9 = 10% más chico, 1.1 = 10% más grande
-const RELLENO_AJUSTE = { x: 0, y: 0, escala: 1 };
-const DEBUG_MOLDE = false; // true dibuja el interior (verde), la zona de soltar (azul), el destino (magenta) y la punta (celeste)
+const VIDEO_SRC = "/objetos/servirMezcla.mp4";
+const VIDEO_DELAY = 600;
+const VIDEO_FADE_MS = 1200;
+const VIDEO_K_MAX = 1.3;
+const VIDEO_ALIGN_Y = 0.5;
+const VIDEO_W = 1920; // tamaño real del video (servirMezcla.mp4 ya procesado)
+const VIDEO_H = 1080;
+
+// Escala mínima: el video cubre todo el canvas sin deformarse
+const KMIN = Math.max(W / VIDEO_W, H / VIDEO_H);
+const VX0 = (W - VIDEO_W * KMIN) / 2;
+const VY0 = (H - VIDEO_H * KMIN) * VIDEO_ALIGN_Y;
+
+/*
+ * Dónde está el bowl en el primer cuadro del video, en píxeles del video (1920x1080).
+ * Si cambiás el video, medilo de nuevo (activá DEBUG_VIDEO para ver si calza).
+ */
+const VIDEO_BOWL = { x0: 123, y0: 468, x1: 540, y1: 814 };
+// true dibuja el bowl del video (magenta) y el bowl visible del juego (celeste)
+const DEBUG_VIDEO = false;
 
 // Trozos que orbitan por la boca y se deshacen (borrá el array para desactivarlos)
 const TROZOS = [
@@ -154,10 +144,6 @@ const SRC = {
   batidor: "/objetos/batidor.png",
   // Opcional: masa lisa. Si no existe, se usa un relleno color crema.
   bowlMasa: "/objetos/bowlMasa.png",
-  moldeVacio: "/objetos/moldeVacio.png",
-  // Opcional: molde con la masa. Se funde encima de moldeVacio mientras se vierte.
-  moldeRelleno: "/objetos/moldeRelleno.png",
-  bowlArrastrable: `/objetos/${BOWL_IMG_VERTER}.png`,
   ...Object.fromEntries(OBJETOS.map((o) => [o.id, o.src])),
 };
 for (const r of RECETA) {
@@ -182,14 +168,87 @@ const cargar = (src) =>
     i.src = src;
   });
 
-function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
+// Rectángulo visible (alfa > 40) de una imagen, como fracción de su ancho/alto (0 a 1)
+function bboxOpaco(img) {
+  if (!img) return null;
+  const cw = 400;
+  const ch = Math.max(1, Math.round((cw * img.naturalHeight) / img.naturalWidth));
+  const c = document.createElement("canvas");
+  c.width = cw;
+  c.height = ch;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(img, 0, 0, cw, ch);
+  let data;
+  try {
+    data = g.getImageData(0, 0, cw, ch).data;
+  } catch {
+    return null;
+  }
+  let x0 = cw, y0 = ch, x1 = -1, y1 = -1;
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      if (data[(y * cw + x) * 4 + 3] > 40) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return null;
+  return { x0: x0 / cw, y0: y0 / ch, x1: (x1 + 1) / cw, y1: (y1 + 1) / ch };
+}
+
+const entre = (v, a, b) => Math.min(Math.max(v, Math.min(a, b)), Math.max(a, b));
+
+// Calza el video con el bowl del juego: elige escala y posición para que el bowl del primer
+// cuadro caiga sobre el bowl visible de la imagen en BOWL_LADO (sin dejar bordes vacíos).
+// Devuelve además dónde tiene que quedar el bowl del juego para coincidir al 100% con el
+// del video (bowlFin): el juego lo acomoda mientras se funde el video.
+function calzarVideo(imgBowl) {
+  const base = { vt: { x: VX0, y: VY0, k: KMIN }, bowlFin: null, bb: null };
+  if (!imgBowl) return base;
+  const bb = bboxOpaco(imgBowl) ?? { x0: 0, y0: 0, x1: 1, y1: 1 };
+  const ar = imgBowl.naturalHeight / imgBowl.naturalWidth;
+  const w = px(BOWL_LADO.w);
+  const h = w * ar;
+  // bowl visible del juego (centro y tamaño)
+  const tw = (bb.x1 - bb.x0) * w;
+  const th = (bb.y1 - bb.y0) * h;
+  const tcx = px(BOWL_LADO.x) + ((bb.x0 + bb.x1) / 2 - 0.5) * w;
+  const tcy = py(BOWL_LADO.y) + ((bb.y0 + bb.y1) / 2 - 0.5) * h;
+  // bowl del video (tamaño en px del video)
+  const sw = VIDEO_BOWL.x1 - VIDEO_BOWL.x0;
+  const sh = VIDEO_BOWL.y1 - VIDEO_BOWL.y0;
+  const scx = (VIDEO_BOWL.x0 + VIDEO_BOWL.x1) / 2;
+  const scy = (VIDEO_BOWL.y0 + VIDEO_BOWL.y1) / 2;
+  const k = entre(Math.sqrt((tw / sw) * (th / sh)), KMIN, VIDEO_K_MAX);
+  const vt = {
+    k,
+    x: entre(tcx - scx * k, W - VIDEO_W * k, 0),
+    y: entre(tcy - scy * k, H - VIDEO_H * k, 0),
+  };
+  // dónde cae el bowl del video con esa escala y posición -> tamaño/lugar de la imagen del juego
+  const fw = (sw * k) / (bb.x1 - bb.x0);
+  const fh = fw * ar;
+  const bowlFin = {
+    x: vt.x + scx * k - ((bb.x0 + bb.x1) / 2 - 0.5) * fw,
+    y: vt.y + scy * k - ((bb.y0 + bb.y1) / 2 - 0.5) * fh,
+    w: fw,
+  };
+  return { vt, bowlFin, bb };
+}
+
+function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
   const canvasRef = useRef(null);
   const onPasoRef = useRef(onPaso);
   const onBowlRef = useRef(onBowl);
   const onBatidorRef = useRef(onBatidor);
+  const onVideoFinRef = useRef(onVideoFin);
   onPasoRef.current = onPaso;
   onBowlRef.current = onBowl;
   onBatidorRef.current = onBatidor;
+  onVideoFinRef.current = onVideoFin;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -197,6 +256,14 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
     const imgs = {};
     let raf;
     let vivo = true;
+
+    // Video (fuera del DOM: solo se dibuja en el canvas)
+    const vid = document.createElement("video");
+    vid.src = VIDEO_SRC;
+    vid.preload = "auto";
+    vid.playsInline = true;
+    vid.setAttribute("playsinline", "");
+    vid.load();
 
     // Estado del juego (objeto normal: el loop del canvas no usa useState)
     const s = {
@@ -213,51 +280,16 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       cuchara: null, // { x, y, modo, t0, dx, dy, desdeX, desdeY, step, aplicado }
       bate: null, // { ang, prog } mientras se mezcla (y después)
       fin: null, // { t0 } cuando termina de batir
-      moldeT0: 0, // momento en que aparece el molde
+      listoT0: 0, // momento en que el bowl llegó al costado
+      vt: { x: VX0, y: VY0, k: KMIN }, // dónde y a qué escala se dibuja el video (ver calzarVideo)
+      bowlFin: null, // tamaño/lugar final del bowl para coincidir con el del video
+      bbBowl: null, // parte visible de la imagen del bowl (solo para DEBUG_VIDEO)
       bowl: { x: px(BOWL_MANTEL.x), y: py(BOWL_MANTEL.y), w: px(BOWL_MANTEL.w) }, // posición actual del bowl
 
-      // --- verter en el molde ---
-      bowlDrag: null, // { modo: quieto | arrastre | vuelve | vierte | listo, ... }
-      bowlRot: 0, // inclinación actual del bowl
-      bowlScale: 1, // se agranda un poco al agarrarlo
-      bowlSkin: null, // null = normal | "arrastrable" | "vacio"
-      lleno: 0, // cuánto está lleno el molde (0 a 1)
-      chorro: null, // { x0, y0, x1, y1, a, w } mientras cae la masa
-      moldeLleno: false, // true cuando ya se vertió toda la masa
-      rellenoT0: 0, // momento en que arranca el fundido hacia moldeRelleno
-      punta: null, // punta del chorro detectada en bowlArrastrable.png
-      onda: 0, // ondulación de la masa mientras cae (0 a 1)
-    };
-
-    // Punto más bajo de una imagen (la punta del chorro), como fracción del
-    // ancho/alto de la imagen medida desde su centro.
-    const puntaDe = (img) => {
-      if (!img) return null;
-      const cw = 160;
-      const ch = Math.max(1, Math.round((cw * img.naturalHeight) / img.naturalWidth));
-      const c = document.createElement("canvas");
-      c.width = cw;
-      c.height = ch;
-      const g = c.getContext("2d", { willReadFrequently: true });
-      g.drawImage(img, 0, 0, cw, ch);
-      let data;
-      try {
-        data = g.getImageData(0, 0, cw, ch).data;
-      } catch {
-        return null;
-      }
-      for (let y = ch - 1; y >= 0; y--) {
-        let sx = 0;
-        let n = 0;
-        for (let x = 0; x < cw; x++) {
-          if (data[(y * cw + x) * 4 + 3] > 60) {
-            sx += x;
-            n++;
-          }
-        }
-        if (n > 0) return { x: sx / n / cw - 0.5, y: (y + 0.5) / ch - 0.5 };
-      }
-      return null;
+      // --- video ---
+      videoIniciado: false,
+      video: null, // { t0 } cuando el video ya está reproduciéndose
+      videoFin: false,
     };
 
     // ---------- helpers de geometría ----------
@@ -268,37 +300,14 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
 
     // Imagen del bowl según el paso actual (si falta alguna, usa la anterior)
     const bowlImg = () => {
-      if (s.bowlSkin === "arrastrable" && imgs.bowlArrastrable) return imgs.bowlArrastrable;
-      if (s.bowlSkin === "vacio" && imgs.bowlMantel) return imgs.bowlMantel;
       if (s.batido && imgs.bowlMasa) return imgs.bowlMasa;
       for (let i = s.paso - 1; i >= 0; i--) {
         if (imgs[RECETA[i].bowl]) return imgs[RECETA[i].bowl];
       }
       return imgs.bowlMantel;
     };
-    const rectBowl = () =>
-      rectDe(bowlImg(), s.bowl.x, s.bowl.y, s.bowl.w);
+    const rectBowl = () => rectDe(bowlImg(), s.bowl.x, s.bowl.y, s.bowl.w);
     const rectObjeto = (o) => rectDe(imgs[o.id], px(o.x), py(o.y), px(o.w));
-    const rectMolde = () => rectDe(imgs.moldeVacio, px(MOLDE.x), py(MOLDE.y), px(MOLDE.w));
-
-    // Zona donde hay que soltar el bowl: la boca del molde (con un poco de margen)
-    const zonaSoltar = () => {
-      const m = rectMolde();
-      return m ? { x: m.x, y: m.y - m.h * 0.1, w: m.w * 0.7, h: m.h } : null;
-    };
-    // Puntos del interior del molde en píxeles lógicos
-    const interiorMolde = () => {
-      const m = rectMolde();
-      return m ? MOLDE_INT.map((q) => ({ x: m.x + q.x * m.w, y: m.y + q.y * m.h })) : null;
-    };
-    // Altura de la superficie de la masa dentro del molde
-    const superficieY = () => {
-      const pts = interiorMolde();
-      if (!pts) return 0;
-      const top = pts[0].y;
-      const bot = pts[3].y;
-      return bot - (bot - top) * LLENADO_MAX * s.lleno;
-    };
 
     const toolImg = (step) => imgs[step.tool] || imgs[step.objeto];
     const toolW = (step) => px(step.toolW ?? TOOL_W);
@@ -417,170 +426,39 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       }
     }
 
-    // Masa que va llenando el molde: sube desde el frente, con la superficie
-    // ondulada mientras cae el chorro, brillo arriba y sombra contra las paredes.
-    // Al terminar de llenarse se funde hacia /objetos/moldeRelleno.png (alpha baja a 0).
-    function rellenoMolde(alpha = 1) {
-      const pts = interiorMolde();
-      if (!pts || s.lleno <= 0 || alpha <= 0) return;
-      const m = rectMolde();
-      const bot = pts[3].y;
-      const sy = superficieY();
-      const vertiendo = s.bowlDrag && s.bowlDrag.modo === "vierte" && s.lleno < 1;
-      s.onda += ((vertiendo ? 1 : 0) - s.onda) * 0.08;
-      const amp = m.h * 0.014 * s.onda;
-      const fase = performance.now() / 180;
-      const izq = m.x - m.w / 2;
-      const N = 30;
-      const yOnda = (i) => sy + Math.sin(i * 0.7 + fase) * amp;
-
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      // recorte al interior del molde
-      ctx.beginPath();
-      pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
-      ctx.closePath();
-      ctx.clip();
-
-      // cuerpo de la masa (borde superior ondulado + degradé)
-      const g = ctx.createLinearGradient(0, sy, 0, bot);
-      g.addColorStop(0, "#f8e9b4");
-      g.addColorStop(0.2, "#f3dfa8");
-      g.addColorStop(1, "#dfba72");
-      ctx.beginPath();
-      ctx.moveTo(izq, bot + 8);
-      for (let i = 0; i <= N; i++) ctx.lineTo(izq + (m.w * i) / N, yOnda(i));
-      ctx.lineTo(izq + m.w, bot + 8);
-      ctx.closePath();
-      ctx.fillStyle = g;
-      ctx.fill();
-
-      // brillo sobre la superficie
-      ctx.beginPath();
-      for (let i = 0; i <= N; i++) {
-        const x = izq + (m.w * i) / N;
-        if (i) ctx.lineTo(x, yOnda(i) + 3);
-        else ctx.moveTo(x, yOnda(i) + 3);
-      }
-      ctx.strokeStyle = "rgba(255,250,225,0.85)";
-      ctx.lineWidth = 5;
-      ctx.lineJoin = "round";
-      ctx.stroke();
-
-      // sombra suave pegada a las paredes, solo donde hay masa
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(izq, sy - amp, m.w, bot - sy + amp + 8);
-      ctx.clip();
-      ctx.beginPath();
-      pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
-      ctx.closePath();
-      ctx.strokeStyle = "rgba(120,80,20,0.22)";
-      ctx.lineWidth = 16;
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.restore();
+    // Pide que arranque el video: primero se funde quieto en su primer cuadro
+    // y recién cuando ya es opaco se reproduce (ver dibujarVideo)
+    function iniciarVideo() {
+      if (s.videoIniciado) return;
+      s.videoIniciado = true;
+      vid.currentTime = 0;
     }
+    const terminarVideo = () => {
+      if (s.videoFin) return;
+      s.videoFin = true;
+      onVideoFinRef.current?.(); // acá podés pasar al siguiente paso (hornear, etc.)
+    };
+    vid.addEventListener("ended", terminarVideo);
+    vid.addEventListener("error", terminarVideo); // si el video no carga, no se cuelga el juego
 
-    // Chorro de masa que cae del borde del bowl al molde
-    function dibujarChorro() {
-      const c = s.chorro;
-      if (!c || c.a <= 0) return;
-      ctx.save();
-      ctx.globalAlpha = c.a;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(c.x0, c.y0);
-      ctx.quadraticCurveTo(c.x0 + 12, c.y0 + (c.y1 - c.y0) * 0.35, c.x1, c.y1);
-      ctx.strokeStyle = "#dcbf7c";
-      ctx.lineWidth = c.w + 5;
-      ctx.stroke();
-      ctx.strokeStyle = "#f3dfa8";
-      ctx.lineWidth = c.w;
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Mueve el bowl: volver a su lugar o verter en el molde
-    function actualizarBowl(ahora) {
-      const bd = s.bowlDrag;
-      if (!bd) return;
-      const home = { x: px(BOWL_LADO.x), y: py(BOWL_LADO.y) };
-
-      s.bowlScale += ((bd.modo === "arrastre" ? 1.06 : 1) - s.bowlScale) * 0.3;
-
-      if (bd.modo === "vuelve") {
-        const t = ease(clamp((ahora - bd.t0) / 300));
-        s.bowl.x = lerp(bd.desdeX, home.x, t);
-        s.bowl.y = lerp(bd.desdeY, home.y, t);
-        if (t >= 1) bd.modo = "quieto";
-        return;
-      }
-
-      if (bd.modo === "vierte") {
-        const m = rectMolde();
-        if (!m) return;
-        const t = clamp((ahora - bd.t0) / VERTER_MS);
-        const L = LABIO_MANUAL ?? s.punta ?? LABIO;
-        const lx = L.x * bd.w;
-        const ly = L.y * bd.hRef;
-        const destino = { x: m.x + VERTER_DESTINO.x * m.w, y: m.y + VERTER_DESTINO.y * m.h };
-        // centro del bowl para que su borde quede justo en "destino" con la inclinación r
-        const centroPara = (r) => ({
-          x: destino.x - (lx * Math.cos(r) - ly * Math.sin(r)),
-          y: destino.y - (lx * Math.sin(r) + ly * Math.cos(r)),
+    // Dibuja el cuadro actual del video, cubriendo todo el canvas, con fundido de entrada
+    function dibujarVideo(ahora) {
+      if (!s.videoIniciado || vid.readyState < 2) return;
+      if (!s.video) s.video = { t0: ahora, playing: false }; // ya hay un cuadro: empieza el fundido
+      const k = clamp((ahora - s.video.t0) / VIDEO_FADE_MS);
+      // fundido completo: ahora sí se reproduce
+      if (k >= 1 && !s.video.playing) {
+        s.video.playing = true;
+        vid.play().catch(() => {
+          // algunos navegadores bloquean el audio: reintenta sin sonido
+          vid.muted = true;
+          vid.play().catch(terminarVideo);
         });
-        // si VERTER_ANG = 0 la imagen ya viene inclinada y no se gira nada
-        const rotMax = VERTER_ANG + (VERTER_ANG ? 0.15 * ease(seg(t, 0.3, 0.8)) : 0);
-
-        let rot, pos;
-        if (t < 0.3) {
-          // se acerca a la boca del molde y empieza a inclinarse
-          const k = ease(seg(t, 0, 0.3));
-          rot = VERTER_ANG * k;
-          const a = centroPara(rot);
-          pos = { x: lerp(bd.desdeX, a.x, k), y: lerp(bd.desdeY, a.y, k) };
-        } else if (t < 0.82) {
-          // vierte
-          rot = rotMax;
-          pos = centroPara(rot);
-        } else {
-          // vuelve a su lugar, vacío
-          const k = ease(seg(t, 0.82, 1));
-          const a = centroPara(rotMax);
-          rot = lerp(rotMax, 0, k);
-          pos = { x: lerp(a.x, home.x, k), y: lerp(a.y, home.y, k) };
-        }
-        s.bowl.x = pos.x;
-        s.bowl.y = pos.y;
-        s.bowlRot = rot;
-
-        // imagen: normal -> bowlArrastrable (al rotar) -> bowl vacío (al terminar de verter)
-        s.bowlSkin = t >= 0.82 ? "vacio" : t >= 0.28 ? "arrastrable" : null;
-
-        // el molde se va llenando
-        s.lleno = ease(seg(t, 0.32, 0.82));
-
-        // chorro: sale del borde del bowl y cae sobre la superficie de la masa
-        const a = CHORRO ? ease(seg(t, 0.3, 0.36)) * (1 - ease(seg(t, 0.78, 0.84))) : 0;
-        if (a > 0) {
-          const lipX = pos.x + (lx * Math.cos(rot) - ly * Math.sin(rot));
-          const lipY = pos.y + (lx * Math.sin(rot) + ly * Math.cos(rot));
-          s.chorro = { x0: lipX, y0: lipY, x1: lipX + 6, y1: Math.max(lipY + 10, superficieY()), a, w: bd.w * 0.045 };
-        } else {
-          s.chorro = null;
-        }
-
-        if (t >= 1) {
-          s.bowl.x = home.x;
-          s.bowl.y = home.y;
-          s.bowlRot = 0;
-          s.chorro = null;
-          s.moldeLleno = true; // acá podés avisar a React y pasar al siguiente paso
-          bd.modo = "listo";
-        }
       }
+      ctx.save();
+      ctx.globalAlpha = ease(k);
+      ctx.drawImage(vid, s.vt.x, s.vt.y, VIDEO_W * s.vt.k, VIDEO_H * s.vt.k);
+      ctx.restore();
     }
 
     function dibujarCuchara(ahora) {
@@ -673,26 +551,28 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       ctx.clearRect(0, 0, W, H);
       if (imgs.fondo) ctx.drawImage(imgs.fondo, 0, 0, W, H);
 
-      // transición final: desaparecen los objetos de la mesa -> se mueve el bowl -> aparece el molde
+      // transición final: desaparecen los objetos de la mesa -> el bowl se desliza al costado
       let kFade = 0;
       if (s.fin) {
         const dt = ahora - s.fin.t0;
         kFade = ease(clamp(dt / FIN_FADE_MS));
         const m = ease(clamp((dt - FIN_FADE_MS - BOWL_MOVE_DELAY) / BOWL_MOVE_MS));
-        // el deslizamiento solo manda mientras el bowl no sea arrastrable
-        if (!s.bowlDrag) {
-          s.bowl.x = lerp(px(BOWL_MANTEL.x), px(BOWL_LADO.x), m);
-          s.bowl.y = lerp(py(BOWL_MANTEL.y), py(BOWL_LADO.y), m);
-          s.bowl.w = lerp(px(BOWL_MANTEL.w), px(BOWL_LADO.w), m);
-        }
-        if (m >= 1 && !s.moldeT0) s.moldeT0 = ahora;
+        s.bowl.x = lerp(px(BOWL_MANTEL.x), px(BOWL_LADO.x), m);
+        s.bowl.y = lerp(py(BOWL_MANTEL.y), py(BOWL_LADO.y), m);
+        s.bowl.w = lerp(px(BOWL_MANTEL.w), px(BOWL_LADO.w), m);
+        if (m >= 1 && !s.listoT0) s.listoT0 = ahora;
       }
 
-      // un momento después de que aparece el molde, el bowl pasa a ser arrastrable
-      if (!s.bowlDrag && s.moldeT0 && ahora - s.moldeT0 > 500) {
-        s.bowlDrag = { modo: "quieto" };
+      // con el bowl al costado: arranca el video (se funde encima, quieto en su primer cuadro)
+      if (s.listoT0 && !s.videoIniciado && ahora - s.listoT0 > VIDEO_DELAY) iniciarVideo();
+
+      // mientras se funde el video, el bowl del juego se acomoda al tamaño/lugar del bowl del video
+      if (s.listoT0 && s.bowlFin) {
+        const a = ease(clamp((ahora - s.listoT0 - VIDEO_DELAY) / VIDEO_FADE_MS));
+        s.bowl.x = lerp(px(BOWL_LADO.x), s.bowlFin.x, a);
+        s.bowl.y = lerp(py(BOWL_LADO.y), s.bowlFin.y, a);
+        s.bowl.w = lerp(px(BOWL_LADO.w), s.bowlFin.w, a);
       }
-      actualizarBowl(ahora);
 
       // objetos de la mesa (con animación al pasar el cursor)
       for (const o of OBJETOS) {
@@ -720,94 +600,45 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
         });
       }
 
-      // molde: cae al centro cuando el bowl ya se fue al costado (va ANTES que el bowl:
-      // así el bowl puede pasar por delante al verter)
-      if (s.moldeT0 && imgs.moldeVacio) {
-        const t = ease(clamp((ahora - s.moldeT0) / 500));
+      // bowl sobre el mantel (cae al aparecer; luego, al costado)
+      if (s.bowlEnMantel) {
+        const im = bowlImg();
+        const t = ease(clamp((ahora - s.bowlT0) / 500));
         const o = {
           alpha: t,
           dy: -60 * (1 - t),
           scale: 0.85 + 0.15 * t,
           sombra: 6,
         };
-        // cuando el molde termina de llenarse, arranca el fundido hacia moldeRelleno
-        if (imgs.moldeRelleno && s.lleno >= 1 && !s.rellenoT0) s.rellenoT0 = ahora;
-        const kRel = s.rellenoT0 ? ease(clamp((ahora - s.rellenoT0) / RELLENO_FADE_MS)) : 0;
-
-        // 1) moldeVacio + masa animada se desvanecen (así no queda nada detrás)
-        sprite(imgs.moldeVacio, px(MOLDE.x), py(MOLDE.y), px(MOLDE.w), {
-          ...o,
-          alpha: t * (1 - kRel),
-        });
-        rellenoMolde(1 - kRel);
-
-        // 2) moldeRelleno aparece en su lugar (fundido cruzado), con ajuste manual
-        if (imgs.moldeRelleno && kRel > 0) {
-          const mv = rectMolde();
-          const A = RELLENO_AJUSTE;
-          sprite(
-            imgs.moldeRelleno,
-            px(MOLDE.x) + A.x * mv.w,
-            py(MOLDE.y) + A.y * mv.h,
-            px(MOLDE.w) * A.escala,
-            { ...o, alpha: t * kRel }
-          );
-        }
-      }
-
-      // bowl sobre el mantel (cae al aparecer; luego es arrastrable)
-      if (s.bowlEnMantel) {
-        const im = bowlImg();
-        const t = ease(clamp((ahora - s.bowlT0) / 500));
-        const bob = s.bowlDrag && s.bowlDrag.modo === "quieto" ? Math.sin(ahora / 300) * 3 : 0;
-        const arr = s.bowlDrag && s.bowlDrag.modo === "arrastre";
-        const o = {
-          alpha: t,
-          dy: -60 * (1 - t) + bob,
-          rot: s.bowlRot,
-          scale: (0.85 + 0.15 * t) * s.bowlScale,
-          sombra: arr ? 12 : 6,
-        };
         if (im) sprite(im, s.bowl.x, s.bowl.y, s.bowl.w, o);
       }
 
       // efecto de mezcla sobre el bowl (si hay bowlMasa.png, al terminar lo dibuja el propio bowl)
-      if (s.bate && !(s.batido && imgs.moldeVacio)) mezclaBowl();
+      if (s.bate && !(s.batido && imgs.bowlMasa)) mezclaBowl();
 
-      dibujarChorro(); // masa cayendo del bowl al molde
-
-      if (DEBUG_MOLDE) {
-        const pts = interiorMolde();
-        const z = zonaSoltar();
+      if (DEBUG_VIDEO) {
+        const k = s.vt.k;
         ctx.save();
         ctx.lineWidth = 3;
-        if (pts) {
-          ctx.strokeStyle = "lime";
-          ctx.beginPath();
-          pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
-          ctx.closePath();
-          ctx.stroke();
-        }
-        if (z) {
-          ctx.strokeStyle = "blue";
-          ctx.strokeRect(z.x - z.w / 2, z.y - z.h / 2, z.w, z.h);
-        }
-        // magenta = dónde debe caer la punta del chorro
-        const mm = rectMolde();
-        if (mm) {
-          ctx.fillStyle = "magenta";
-          ctx.beginPath();
-          ctx.arc(mm.x + VERTER_DESTINO.x * mm.w, mm.y + VERTER_DESTINO.y * mm.h, 8, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        // celeste = punta del chorro detectada en el bowl
-        const bdd = s.bowlDrag;
-        if (bdd && bdd.hRef) {
-          const LL = LABIO_MANUAL ?? s.punta ?? LABIO;
-          ctx.fillStyle = "cyan";
-          ctx.beginPath();
-          ctx.arc(s.bowl.x + LL.x * bdd.w, s.bowl.y + LL.y * bdd.hRef, 8, 0, Math.PI * 2);
-          ctx.fill();
+        ctx.strokeStyle = "magenta"; // bowl del video
+        ctx.strokeRect(
+          s.vt.x + VIDEO_BOWL.x0 * k,
+          s.vt.y + VIDEO_BOWL.y0 * k,
+          (VIDEO_BOWL.x1 - VIDEO_BOWL.x0) * k,
+          (VIDEO_BOWL.y1 - VIDEO_BOWL.y0) * k
+        );
+        const bb = s.bbBowl;
+        const im = bowlImg();
+        if (bb && im) {
+          const w = s.bowl.w;
+          const h = (w * im.naturalHeight) / im.naturalWidth;
+          ctx.strokeStyle = "cyan"; // parte visible del bowl del juego
+          ctx.strokeRect(
+            s.bowl.x - w / 2 + bb.x0 * w,
+            s.bowl.y - h / 2 + bb.y0 * h,
+            (bb.x1 - bb.x0) * w,
+            (bb.y1 - bb.y0) * h
+          );
         }
         ctx.restore();
       }
@@ -820,7 +651,10 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
         onBatidorRef.current?.();
       }
 
-      dibujarCuchara(ahora); // siempre al final: queda por encima de todo
+      dibujarCuchara(ahora);
+
+      // el video va al final: se funde por encima de toda la escena y queda en su último cuadro
+      dibujarVideo(ahora);
 
       // avisar a React para que tilde el recetario
       if (s.paso !== s.reportado) {
@@ -847,30 +681,6 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       c.desdeY = c.y;
     }
 
-    // el bowl con la masa se vierte en el molde
-    function verterBowl() {
-      const bd = s.bowlDrag;
-      const r = rectBowl();
-      bd.modo = "vierte";
-      bd.t0 = performance.now();
-      bd.desdeX = s.bowl.x;
-      bd.desdeY = s.bowl.y;
-      bd.w = s.bowl.w;
-      // alto de referencia: el de bowlArrastrable.png al ancho actual del bowl
-      // (LABIO / la punta del chorro están medidos sobre esa imagen)
-      const ia = imgs.bowlArrastrable;
-      bd.hRef = ia ? (bd.w * ia.naturalHeight) / ia.naturalWidth : r ? r.h : s.bowl.w * 0.77;
-    }
-
-    // soltó el bowl fuera de la boca del molde: vuelve a su lugar
-    function volverBowl() {
-      const bd = s.bowlDrag;
-      bd.modo = "vuelve";
-      bd.t0 = performance.now();
-      bd.desdeX = s.bowl.x;
-      bd.desdeY = s.bowl.y;
-    }
-
     // ---------- entrada (mouse y touch) ----------
     const aLogicas = (e) => {
       const r = canvas.getBoundingClientRect();
@@ -890,17 +700,6 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
     function onDown(e) {
       const p = aLogicas(e);
       const c = s.cuchara;
-
-      // 0) agarrar el bowl con la masa (cuando ya se puede verter)
-      const bd = s.bowlDrag;
-      if (bd && bd.modo === "quieto" && dentro(rectBowl(), p.x, p.y)) {
-        bd.modo = "arrastre";
-        bd.dx = s.bowl.x - p.x;
-        bd.dy = s.bowl.y - p.y;
-        canvas.setPointerCapture(e.pointerId);
-        canvas.style.cursor = "grabbing";
-        return;
-      }
 
       // 1) agarrar lo que aparece (cuchara, huevo, batidor...)
       if (c && c.modo === "quieta" && dentro(rectCuchara(), p.x, p.y)) {
@@ -942,35 +741,19 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
     function onMove(e) {
       const p = aLogicas(e);
       const c = s.cuchara;
-      const bd = s.bowlDrag;
 
-      if (bd && bd.modo === "arrastre") {
-        s.bowl.x = p.x + bd.dx;
-        s.bowl.y = p.y + bd.dy;
-        return;
-      }
       if (c && c.modo === "arrastre") {
         c.x = p.x + c.dx;
         c.y = p.y + c.dy;
         return;
       }
-      const sobreBowl = bd && bd.modo === "quieto" && dentro(rectBowl(), p.x, p.y);
       const sobreCuchara = c && c.modo === "quieta" && dentro(rectCuchara(), p.x, p.y);
-      const o = sobreCuchara || sobreBowl ? null : objetoBajo(p);
+      const o = sobreCuchara ? null : objetoBajo(p);
       s.hover = o ? o.id : null;
-      canvas.style.cursor = sobreCuchara || sobreBowl ? "grab" : o ? "pointer" : "default";
+      canvas.style.cursor = sobreCuchara ? "grab" : o ? "pointer" : "default";
     }
 
     function onUp(e) {
-      const bd = s.bowlDrag;
-      if (bd && bd.modo === "arrastre") {
-        if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-        canvas.style.cursor = "default";
-        if (dentro(zonaSoltar(), s.bowl.x, s.bowl.y)) verterBowl();
-        else volverBowl();
-        return;
-      }
-
       const c = s.cuchara;
       if (!c || c.modo !== "arrastre") return;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
@@ -990,7 +773,12 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
           imgs[k] = await cargar(v);
         })
       );
-      s.punta = puntaDe(imgs.bowlArrastrable);
+      // el video se mueve y escala para que su bowl caiga sobre el bowl del juego
+      const imgBowlFin = imgs.bowlMasa || imgs[RECETA[RECETA.length - 1].bowl] || imgs.bowlMantel;
+      const cal = calzarVideo(imgBowlFin);
+      s.vt = cal.vt;
+      s.bowlFin = cal.bowlFin;
+      s.bbBowl = cal.bb;
       if (vivo) raf = requestAnimationFrame(dibujar);
     })();
 
@@ -1001,6 +789,9 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
     return () => {
       vivo = false;
       cancelAnimationFrame(raf);
+      vid.pause();
+      vid.removeAttribute("src");
+      vid.load();
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
@@ -1080,6 +871,9 @@ export default function CrearPastelPage() {
             onPaso={setPaso}
             onBowl={() => setBowlListo(true)}
             onBatidor={() => setBatidorListo(true)}
+            onVideoFin={() => {
+              /* el video terminó: acá podés pasar al siguiente paso */
+            }}
           />
           {bowlListo && !batidorListo && <Recetario paso={paso} />}
         </>
