@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./crearPastel.module.css";
+import Button from "@/components/Button"; // ajustá la ruta a donde esté tu componente
 
 // Resolución lógica del canvas = tamaño de mesada.png
 const W = 1885;
@@ -128,6 +130,11 @@ const VY0 = (H - VIDEO_H * KMIN) * VIDEO_ALIGN_Y;
 const VIDEO_BOWL = { x0: 123, y0: 468, x1: 540, y1: 814 };
 // true dibuja el bowl del video (magenta) y el bowl visible del juego (celeste)
 const DEBUG_VIDEO = false;
+
+// Retraso (ms) entre que termina el video y aparece el botón "Paso 2"
+const BOTON_DELAY = 500;
+// Ruta a la que lleva el botón
+const RUTA_PASO_2 = "/competencia3";
 
 // Trozos que orbitan por la boca y se deshacen (borrá el array para desactivarlos)
 const TROZOS = [
@@ -436,7 +443,7 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
     const terminarVideo = () => {
       if (s.videoFin) return;
       s.videoFin = true;
-      onVideoFinRef.current?.(); // acá podés pasar al siguiente paso (hornear, etc.)
+      onVideoFinRef.current?.(); // avisa a React: aparece el botón "Paso 2"
     };
     vid.addEventListener("ended", terminarVideo);
     vid.addEventListener("error", terminarVideo); // si el video no carga, no se cuelga el juego
@@ -845,10 +852,12 @@ function Recetario({ paso }) {
 }
 
 export default function CrearPastelPage() {
+  const router = useRouter();
   const [mezclando, setMezclando] = useState(false);
   const [bowlListo, setBowlListo] = useState(false);
   const [batidorListo, setBatidorListo] = useState(false);
   const [paso, setPaso] = useState(0);
+  const [videoFin, setVideoFin] = useState(false);
 
   return (
     <main className={`${styles.game} ${mezclando ? styles.gameMezcla : ""}`}>
@@ -871,11 +880,19 @@ export default function CrearPastelPage() {
             onPaso={setPaso}
             onBowl={() => setBowlListo(true)}
             onBatidor={() => setBatidorListo(true)}
-            onVideoFin={() => {
-              /* el video terminó: acá podés pasar al siguiente paso */
-            }}
+            onVideoFin={() => setTimeout(() => setVideoFin(true), BOTON_DELAY)}
           />
           {bowlListo && !batidorListo && <Recetario paso={paso} />}
+
+          {/* Cuando termina el video: botón abajo a la derecha hacia el paso 2 */}
+          {videoFin && (
+            <div className={styles.siguiente}>
+              <Button type="button" onClick={() => router.push(RUTA_PASO_2)}>
+                <span>Paso 2</span>
+                <span aria-hidden="true">→</span>
+              </Button>
+            </div>
+          )}
         </>
       )}
     </main>

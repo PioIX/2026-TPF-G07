@@ -1,0 +1,60 @@
+.game {
+  position: relative;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* botones en la parte inferior */
+  align-items: center;
+  gap: 15px;
+
+  /* margen inferior para que no peguen al borde */
+  padding-bottom: 60px;
+
+  background-image: url("/pasoEmpezar.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.btn-imagen {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  display: inline-block;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.btn-imagen img {
+  /* 420px como máximo, pero se achica en pantallas chicas o bajas */
+  width: min(420px, 85vw, 28vh * 2.7);
+  height: auto;
+  display: block;
+}
+
+/* Efectos al pasar el cursor o hacer clic */
+.btn-imagen:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+.btn-imagen:active {
+  transform: scale(0.95);
+}
+
+/* Accesibilidad: foco visible con teclado */
+.btn-imagen:focus-visible {
+  outline: 3px solid #7a4a2b;
+  outline-offset: 4px;
+  border-radius: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-imagen {
+    transition: none;
+  }
+}

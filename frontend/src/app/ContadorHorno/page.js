@@ -1,12 +1,15 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./ContadorHorno.module.css";
 import Button from "@/components/Button";
 import Buttonstyle from "@/components/Button.module.css";
 
 const META = 10;
+const RUTA_PASO_3 = "/decorarPastel";
 
 export default function ContadorHornoPage() {
+  const router = useRouter();
   const [toques, setToques] = useState(0);
   const [brillos, setBrillos] = useState([]);
   const horneado = toques >= META;
@@ -59,6 +62,14 @@ export default function ContadorHornoPage() {
               ✦
             </span>
           ))}
+
+          {/* Botón abajo a la derecha hacia el paso 3 */}
+          <div className={styles.siguiente}>
+            <Button type="button" onClick={() => router.push(RUTA_PASO_3)}>
+              <span>Paso 3</span>
+              <span aria-hidden="true">→</span>
+            </Button>
+          </div>
         </>
       )}
 
