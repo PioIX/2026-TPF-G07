@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./crearPastel.module.css";
+import Button from "@/components/Button"; // ajustá la ruta a donde esté tu componente
 
 // Resolución lógica del canvas = tamaño de mesada.png
 const W = 1885;
@@ -66,13 +68,10 @@ const VUELTAS = 6; // vueltas del batidor durante la mezcla
 /*
  * BOCA del bowl, como fracción del tamaño del bowl en pantalla.
  * AJUSTALA A OJO con DEBUG_BOCA = true (se dibuja una elipse roja).
- *  - y  : altura de la boca respecto al centro del bowl
- *  - rx : semiancho de la boca
- *  - ry : semialto de la boca (menor que rx = perspectiva)
  */
 const BOCA = { y: -0.10, rx: 0.42, ry: 0.32 };
 const SWIRL_K = 0.25; // cuánto gira la masa respecto al batidor (más = más retorcida)
-const DEBUG_BOCA = true; // poné false cuando ya la tengas ajustada
+const DEBUG_BOCA = false; // poné true para ver la elipse roja y ajustarla
 
 // Órbita del batidor: usa la misma boca, un poco más chica
 const BATIDO_CFG = {
@@ -83,16 +82,59 @@ const BATIDO_CFG = {
 
 /*
  * TRANSICIÓN FINAL (cuando termina de batir):
- *  1) desaparecen el batidor, la elipse roja y los objetos de la mesada
+ *  1) desaparecen el batidor y los objetos de la mesada
  *  2) el bowl (con la masa) se desliza hacia BOWL_LADO
- *  3) aparece el molde (/objetos/molde.png) en MOLDE
- * Posiciones en % de la escena (centro) y ancho en % del ancho.
+ *  3) el VIDEO de servir la masa se funde encima de la escena.
+ *     El molde NO es una imagen: lo trae el propio video, que arranca con el mantel
+ *     vacío y el bowl a la izquierda (justo donde quedó el bowl del juego).
  */
 const FIN_FADE_MS = 700; // desvanecer batidor + ingredientes
 const BOWL_MOVE_DELAY = 300; // pausa antes de mover el bowl
 const BOWL_MOVE_MS = 900; // duración del deslizamiento
-const BOWL_LADO = { x: 20, y: 58, w: 20 }; // a dónde se va el bowl (a la izquierda)
-const MOLDE = { x: 50, y: 52, w: 30 }; // dónde aparece el molde
+const BOWL_LADO = { x: 20, y: 58, w: 20 }; // a dónde se va el bowl (a la izquierda, sobre el mantel)
+
+/*
+ * VIDEO DE SERVIR LA MASA
+ *  - VIDEO_SRC     : ruta del video (ponelo en /public/objetos/servirMezcla.mp4)
+ *  - VIDEO_DELAY   : pausa (ms) entre que el bowl llega al costado y empieza el fundido
+ *  - VIDEO_FADE_MS : fundido de entrada del video sobre la escena. El video se queda
+ *                    quieto en su primer cuadro mientras se funde y recién después
+ *                    se reproduce (así el fundido no se come el comienzo de la acción).
+ *                    Durante ese tiempo el bowl del juego se acomoda (tamaño y lugar)
+ *                    al bowl del video, para que el cambio no se note.
+ *  - VIDEO_K_MAX   : cuánto se puede agrandar el video, como máximo, para calzar el bowl
+ *                    (1 = justo para cubrir el canvas)
+ *  - VIDEO_ALIGN_Y : solo valor de respaldo (0 = se recorta por abajo, 1 = por arriba)
+ *
+ * Al cargar, el video se MUEVE y escala solo para que su bowl (VIDEO_BOWL) caiga sobre el
+ * bowl del juego (BOWL_LADO). El video es 16:9 y el canvas es más ancho, así que sobra
+ * alto: se recorta arriba/abajo.
+ */
+const VIDEO_SRC = "/objetos/servirMezcla.mp4";
+const VIDEO_DELAY = 600;
+const VIDEO_FADE_MS = 1200;
+const VIDEO_K_MAX = 1.3;
+const VIDEO_ALIGN_Y = 0.5;
+const VIDEO_W = 1920; // tamaño real del video (servirMezcla.mp4 ya procesado)
+const VIDEO_H = 1080;
+
+// Escala mínima: el video cubre todo el canvas sin deformarse
+const KMIN = Math.max(W / VIDEO_W, H / VIDEO_H);
+const VX0 = (W - VIDEO_W * KMIN) / 2;
+const VY0 = (H - VIDEO_H * KMIN) * VIDEO_ALIGN_Y;
+
+/*
+ * Dónde está el bowl en el primer cuadro del video, en píxeles del video (1920x1080).
+ * Si cambiás el video, medilo de nuevo (activá DEBUG_VIDEO para ver si calza).
+ */
+const VIDEO_BOWL = { x0: 123, y0: 468, x1: 540, y1: 814 };
+// true dibuja el bowl del video (magenta) y el bowl visible del juego (celeste)
+const DEBUG_VIDEO = false;
+
+// Retraso (ms) entre que termina el video y aparece el botón "Paso 2"
+const BOTON_DELAY = 500;
+// Ruta a la que lleva el botón
+const RUTA_PASO_2 = "/competencia3";
 
 // Trozos que orbitan por la boca y se deshacen (borrá el array para desactivarlos)
 const TROZOS = [
@@ -109,7 +151,6 @@ const SRC = {
   batidor: "/objetos/batidor.png",
   // Opcional: masa lisa. Si no existe, se usa un relleno color crema.
   bowlMasa: "/objetos/bowlMasa.png",
-  molde: "/objetos/molde.png",
   ...Object.fromEntries(OBJETOS.map((o) => [o.id, o.src])),
 };
 for (const r of RECETA) {
@@ -134,14 +175,87 @@ const cargar = (src) =>
     i.src = src;
   });
 
-function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
+// Rectángulo visible (alfa > 40) de una imagen, como fracción de su ancho/alto (0 a 1)
+function bboxOpaco(img) {
+  if (!img) return null;
+  const cw = 400;
+  const ch = Math.max(1, Math.round((cw * img.naturalHeight) / img.naturalWidth));
+  const c = document.createElement("canvas");
+  c.width = cw;
+  c.height = ch;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  g.drawImage(img, 0, 0, cw, ch);
+  let data;
+  try {
+    data = g.getImageData(0, 0, cw, ch).data;
+  } catch {
+    return null;
+  }
+  let x0 = cw, y0 = ch, x1 = -1, y1 = -1;
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      if (data[(y * cw + x) * 4 + 3] > 40) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return null;
+  return { x0: x0 / cw, y0: y0 / ch, x1: (x1 + 1) / cw, y1: (y1 + 1) / ch };
+}
+
+const entre = (v, a, b) => Math.min(Math.max(v, Math.min(a, b)), Math.max(a, b));
+
+// Calza el video con el bowl del juego: elige escala y posición para que el bowl del primer
+// cuadro caiga sobre el bowl visible de la imagen en BOWL_LADO (sin dejar bordes vacíos).
+// Devuelve además dónde tiene que quedar el bowl del juego para coincidir al 100% con el
+// del video (bowlFin): el juego lo acomoda mientras se funde el video.
+function calzarVideo(imgBowl) {
+  const base = { vt: { x: VX0, y: VY0, k: KMIN }, bowlFin: null, bb: null };
+  if (!imgBowl) return base;
+  const bb = bboxOpaco(imgBowl) ?? { x0: 0, y0: 0, x1: 1, y1: 1 };
+  const ar = imgBowl.naturalHeight / imgBowl.naturalWidth;
+  const w = px(BOWL_LADO.w);
+  const h = w * ar;
+  // bowl visible del juego (centro y tamaño)
+  const tw = (bb.x1 - bb.x0) * w;
+  const th = (bb.y1 - bb.y0) * h;
+  const tcx = px(BOWL_LADO.x) + ((bb.x0 + bb.x1) / 2 - 0.5) * w;
+  const tcy = py(BOWL_LADO.y) + ((bb.y0 + bb.y1) / 2 - 0.5) * h;
+  // bowl del video (tamaño en px del video)
+  const sw = VIDEO_BOWL.x1 - VIDEO_BOWL.x0;
+  const sh = VIDEO_BOWL.y1 - VIDEO_BOWL.y0;
+  const scx = (VIDEO_BOWL.x0 + VIDEO_BOWL.x1) / 2;
+  const scy = (VIDEO_BOWL.y0 + VIDEO_BOWL.y1) / 2;
+  const k = entre(Math.sqrt((tw / sw) * (th / sh)), KMIN, VIDEO_K_MAX);
+  const vt = {
+    k,
+    x: entre(tcx - scx * k, W - VIDEO_W * k, 0),
+    y: entre(tcy - scy * k, H - VIDEO_H * k, 0),
+  };
+  // dónde cae el bowl del video con esa escala y posición -> tamaño/lugar de la imagen del juego
+  const fw = (sw * k) / (bb.x1 - bb.x0);
+  const fh = fw * ar;
+  const bowlFin = {
+    x: vt.x + scx * k - ((bb.x0 + bb.x1) / 2 - 0.5) * fw,
+    y: vt.y + scy * k - ((bb.y0 + bb.y1) / 2 - 0.5) * fh,
+    w: fw,
+  };
+  return { vt, bowlFin, bb };
+}
+
+function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
   const canvasRef = useRef(null);
   const onPasoRef = useRef(onPaso);
   const onBowlRef = useRef(onBowl);
   const onBatidorRef = useRef(onBatidor);
+  const onVideoFinRef = useRef(onVideoFin);
   onPasoRef.current = onPaso;
   onBowlRef.current = onBowl;
   onBatidorRef.current = onBatidor;
+  onVideoFinRef.current = onVideoFin;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -149,6 +263,14 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
     const imgs = {};
     let raf;
     let vivo = true;
+
+    // Video (fuera del DOM: solo se dibuja en el canvas)
+    const vid = document.createElement("video");
+    vid.src = VIDEO_SRC;
+    vid.preload = "auto";
+    vid.playsInline = true;
+    vid.setAttribute("playsinline", "");
+    vid.load();
 
     // Estado del juego (objeto normal: el loop del canvas no usa useState)
     const s = {
@@ -165,8 +287,16 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       cuchara: null, // { x, y, modo, t0, dx, dy, desdeX, desdeY, step, aplicado }
       bate: null, // { ang, prog } mientras se mezcla (y después)
       fin: null, // { t0 } cuando termina de batir
-      moldeT0: 0, // momento en que aparece el molde
+      listoT0: 0, // momento en que el bowl llegó al costado
+      vt: { x: VX0, y: VY0, k: KMIN }, // dónde y a qué escala se dibuja el video (ver calzarVideo)
+      bowlFin: null, // tamaño/lugar final del bowl para coincidir con el del video
+      bbBowl: null, // parte visible de la imagen del bowl (solo para DEBUG_VIDEO)
       bowl: { x: px(BOWL_MANTEL.x), y: py(BOWL_MANTEL.y), w: px(BOWL_MANTEL.w) }, // posición actual del bowl
+
+      // --- video ---
+      videoIniciado: false,
+      video: null, // { t0 } cuando el video ya está reproduciéndose
+      videoFin: false,
     };
 
     // ---------- helpers de geometría ----------
@@ -183,8 +313,7 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       }
       return imgs.bowlMantel;
     };
-    const rectBowl = () =>
-      rectDe(bowlImg(), s.bowl.x, s.bowl.y, s.bowl.w);
+    const rectBowl = () => rectDe(bowlImg(), s.bowl.x, s.bowl.y, s.bowl.w);
     const rectObjeto = (o) => rectDe(imgs[o.id], px(o.x), py(o.y), px(o.w));
 
     const toolImg = (step) => imgs[step.tool] || imgs[step.objeto];
@@ -202,8 +331,8 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
 
     // ---------- dibujo ----------
     function sprite(img, x, y, w, o = {}) {
-      const { scale = 1, dx = 0, dy = 0, rot = 0, alpha = 1, sombra = 4 } = o;
-      const h = (w * img.naturalHeight) / img.naturalWidth;
+      const { scale = 1, dx = 0, dy = 0, rot = 0, alpha = 1, sombra = 4, h: hFijo } = o;
+      const h = hFijo ?? (w * img.naturalHeight) / img.naturalWidth;
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.translate(x + dx, y + dy);
@@ -304,6 +433,41 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       }
     }
 
+    // Pide que arranque el video: primero se funde quieto en su primer cuadro
+    // y recién cuando ya es opaco se reproduce (ver dibujarVideo)
+    function iniciarVideo() {
+      if (s.videoIniciado) return;
+      s.videoIniciado = true;
+      vid.currentTime = 0;
+    }
+    const terminarVideo = () => {
+      if (s.videoFin) return;
+      s.videoFin = true;
+      onVideoFinRef.current?.(); // avisa a React: aparece el botón "Paso 2"
+    };
+    vid.addEventListener("ended", terminarVideo);
+    vid.addEventListener("error", terminarVideo); // si el video no carga, no se cuelga el juego
+
+    // Dibuja el cuadro actual del video, cubriendo todo el canvas, con fundido de entrada
+    function dibujarVideo(ahora) {
+      if (!s.videoIniciado || vid.readyState < 2) return;
+      if (!s.video) s.video = { t0: ahora, playing: false }; // ya hay un cuadro: empieza el fundido
+      const k = clamp((ahora - s.video.t0) / VIDEO_FADE_MS);
+      // fundido completo: ahora sí se reproduce
+      if (k >= 1 && !s.video.playing) {
+        s.video.playing = true;
+        vid.play().catch(() => {
+          // algunos navegadores bloquean el audio: reintenta sin sonido
+          vid.muted = true;
+          vid.play().catch(terminarVideo);
+        });
+      }
+      ctx.save();
+      ctx.globalAlpha = ease(k);
+      ctx.drawImage(vid, s.vt.x, s.vt.y, VIDEO_W * s.vt.k, VIDEO_H * s.vt.k);
+      ctx.restore();
+    }
+
     function dibujarCuchara(ahora) {
       const c = s.cuchara;
       if (!c) return;
@@ -394,7 +558,7 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
       ctx.clearRect(0, 0, W, H);
       if (imgs.fondo) ctx.drawImage(imgs.fondo, 0, 0, W, H);
 
-      // transición final: desaparecen los objetos de la mesa -> se mueve el bowl -> aparece el molde
+      // transición final: desaparecen los objetos de la mesa -> el bowl se desliza al costado
       let kFade = 0;
       if (s.fin) {
         const dt = ahora - s.fin.t0;
@@ -403,7 +567,18 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
         s.bowl.x = lerp(px(BOWL_MANTEL.x), px(BOWL_LADO.x), m);
         s.bowl.y = lerp(py(BOWL_MANTEL.y), py(BOWL_LADO.y), m);
         s.bowl.w = lerp(px(BOWL_MANTEL.w), px(BOWL_LADO.w), m);
-        if (m >= 1 && !s.moldeT0) s.moldeT0 = ahora;
+        if (m >= 1 && !s.listoT0) s.listoT0 = ahora;
+      }
+
+      // con el bowl al costado: arranca el video (se funde encima, quieto en su primer cuadro)
+      if (s.listoT0 && !s.videoIniciado && ahora - s.listoT0 > VIDEO_DELAY) iniciarVideo();
+
+      // mientras se funde el video, el bowl del juego se acomoda al tamaño/lugar del bowl del video
+      if (s.listoT0 && s.bowlFin) {
+        const a = ease(clamp((ahora - s.listoT0 - VIDEO_DELAY) / VIDEO_FADE_MS));
+        s.bowl.x = lerp(px(BOWL_LADO.x), s.bowlFin.x, a);
+        s.bowl.y = lerp(py(BOWL_LADO.y), s.bowlFin.y, a);
+        s.bowl.w = lerp(px(BOWL_LADO.w), s.bowlFin.w, a);
       }
 
       // objetos de la mesa (con animación al pasar el cursor)
@@ -432,26 +607,47 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
         });
       }
 
-      // bowl sobre el mantel (cae al aparecer)
+      // bowl sobre el mantel (cae al aparecer; luego, al costado)
       if (s.bowlEnMantel) {
         const im = bowlImg();
         const t = ease(clamp((ahora - s.bowlT0) / 500));
-        const o = { alpha: t, dy: -60 * (1 - t), scale: 0.85 + 0.15 * t, sombra: 6 };
+        const o = {
+          alpha: t,
+          dy: -60 * (1 - t),
+          scale: 0.85 + 0.15 * t,
+          sombra: 6,
+        };
         if (im) sprite(im, s.bowl.x, s.bowl.y, s.bowl.w, o);
       }
 
       // efecto de mezcla sobre el bowl (si hay bowlMasa.png, al terminar lo dibuja el propio bowl)
       if (s.bate && !(s.batido && imgs.bowlMasa)) mezclaBowl();
 
-      // molde: cae al centro cuando el bowl ya se fue al costado
-      if (s.moldeT0 && imgs.molde) {
-        const t = ease(clamp((ahora - s.moldeT0) / 500));
-        sprite(imgs.molde, px(MOLDE.x), py(MOLDE.y), px(MOLDE.w), {
-          alpha: t,
-          dy: -60 * (1 - t),
-          scale: 0.85 + 0.15 * t,
-          sombra: 6,
-        });
+      if (DEBUG_VIDEO) {
+        const k = s.vt.k;
+        ctx.save();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "magenta"; // bowl del video
+        ctx.strokeRect(
+          s.vt.x + VIDEO_BOWL.x0 * k,
+          s.vt.y + VIDEO_BOWL.y0 * k,
+          (VIDEO_BOWL.x1 - VIDEO_BOWL.x0) * k,
+          (VIDEO_BOWL.y1 - VIDEO_BOWL.y0) * k
+        );
+        const bb = s.bbBowl;
+        const im = bowlImg();
+        if (bb && im) {
+          const w = s.bowl.w;
+          const h = (w * im.naturalHeight) / im.naturalWidth;
+          ctx.strokeStyle = "cyan"; // parte visible del bowl del juego
+          ctx.strokeRect(
+            s.bowl.x - w / 2 + bb.x0 * w,
+            s.bowl.y - h / 2 + bb.y0 * h,
+            (bb.x1 - bb.x0) * w,
+            (bb.y1 - bb.y0) * h
+          );
+        }
+        ctx.restore();
       }
 
       // receta completa: aparece el batidor en el lugar del recetario
@@ -462,7 +658,10 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
         onBatidorRef.current?.();
       }
 
-      dibujarCuchara(ahora); // siempre al final: queda por encima de todo
+      dibujarCuchara(ahora);
+
+      // el video va al final: se funde por encima de toda la escena y queda en su último cuadro
+      dibujarVideo(ahora);
 
       // avisar a React para que tilde el recetario
       if (s.paso !== s.reportado) {
@@ -549,6 +748,7 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
     function onMove(e) {
       const p = aLogicas(e);
       const c = s.cuchara;
+
       if (c && c.modo === "arrastre") {
         c.x = p.x + c.dx;
         c.y = p.y + c.dy;
@@ -580,6 +780,12 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
           imgs[k] = await cargar(v);
         })
       );
+      // el video se mueve y escala para que su bowl caiga sobre el bowl del juego
+      const imgBowlFin = imgs.bowlMasa || imgs[RECETA[RECETA.length - 1].bowl] || imgs.bowlMantel;
+      const cal = calzarVideo(imgBowlFin);
+      s.vt = cal.vt;
+      s.bowlFin = cal.bowlFin;
+      s.bbBowl = cal.bb;
       if (vivo) raf = requestAnimationFrame(dibujar);
     })();
 
@@ -590,6 +796,9 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor }) {
     return () => {
       vivo = false;
       cancelAnimationFrame(raf);
+      vid.pause();
+      vid.removeAttribute("src");
+      vid.load();
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
@@ -643,10 +852,12 @@ function Recetario({ paso }) {
 }
 
 export default function CrearPastelPage() {
+  const router = useRouter();
   const [mezclando, setMezclando] = useState(false);
   const [bowlListo, setBowlListo] = useState(false);
   const [batidorListo, setBatidorListo] = useState(false);
   const [paso, setPaso] = useState(0);
+  const [videoFin, setVideoFin] = useState(false);
 
   return (
     <main className={`${styles.game} ${mezclando ? styles.gameMezcla : ""}`}>
@@ -669,8 +880,19 @@ export default function CrearPastelPage() {
             onPaso={setPaso}
             onBowl={() => setBowlListo(true)}
             onBatidor={() => setBatidorListo(true)}
+            onVideoFin={() => setTimeout(() => setVideoFin(true), BOTON_DELAY)}
           />
           {bowlListo && !batidorListo && <Recetario paso={paso} />}
+
+          {/* Cuando termina el video: botón abajo a la derecha hacia el paso 2 */}
+          {videoFin && (
+            <div className={styles.siguiente}>
+              <Button type="button" onClick={() => router.push(RUTA_PASO_2)}>
+                <span>Paso 2</span>
+                <span aria-hidden="true">→</span>
+              </Button>
+            </div>
+          )}
         </>
       )}
     </main>
