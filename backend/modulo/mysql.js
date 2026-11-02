@@ -1,8 +1,7 @@
 const mySql = require("mysql2/promise");
 
 const SQL_CONFIGURATION_DATA = {
-  // Cambiamos process.env.MYSQL_HOST por "127.0.0.1" o fallback a local IP
-  host: process.env.MYSQL_HOST || "127.0.0.1",
+  host: process.env.MYSQL_HOST ,
   user: process.env.MYSQL_USERNAME,
   password: process.env.MYSQL_PASSWORD, 
   database: process.env.MYSQL_DB, 

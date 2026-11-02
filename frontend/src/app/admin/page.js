@@ -11,9 +11,8 @@ import Inputstyles from "@/components/Input.module.css";
 export default function InicioPage() {
   const router = useRouter();
 
-  // Estado para abrir/cerrar el modal
   const [showModal, setShowModal] = useState(false);
-  // Estado para la vista dentro del modal: 'main', 'usuarios', o 'agregar_usuario'
+  // Vistas del modal: 'main', 'usuarios', 'agregar_usuario', 'eliminar_usuario'
   const [modalView, setModalView] = useState("main");
 
   // Estado para los inputs del nuevo usuario
@@ -24,7 +23,10 @@ export default function InicioPage() {
     es_admin: false,
   });
 
-  // Estado para feedback al usuario (éxito o error)
+  // Estados para eliminar usuario
+  const [usuarios, setUsuarios] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+
   const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function InicioPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     setMensaje("");
-    // Limpiar formulario al cerrar
+    setSelectedUserId("");
     setFormData({ nombre: "", mail: "", contraseña: "", es_admin: false });
   };
 
@@ -50,6 +52,33 @@ export default function InicioPage() {
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+  };
+
+  // Cargar lista de usuarios desde la API
+  const fetchUsuarios = async () => {
+    setMensaje("");
+    try {
+      const res = await fetch("http://localhost:4000/admin/usuarios");
+      const data = await res.json();
+      if (data.ok) {
+        setUsuarios(data.usuarios);
+        if (data.usuarios.length > 0) {
+          setSelectedUserId(data.usuarios[0].id_usuario);
+        } else {
+          setSelectedUserId("");
+        }
+      } else {
+        setMensaje("No se pudieron cargar los usuarios");
+      }
+    } catch (error) {
+      console.error("Error al obtener usuarios:", error);
+      setMensaje("Error al conectar con el servidor.");
+    }
+  };
+
+  const handleOpenEliminarVista = async () => {
+    await fetchUsuarios();
+    setModalView("eliminar_usuario");
   };
 
   const handleSubmitAgregar = async (e) => {
@@ -78,7 +107,40 @@ export default function InicioPage() {
       }
     } catch (error) {
       console.error("Error al agregar usuario:", error);
-      setMensaje("Error al conectar con el servidor. Revisá la consola.");
+      setMensaje("Error al conectar con el servidor.");
+    }
+  };
+
+  const handleEliminarUsuario = async (e) => {
+    e.preventDefault();
+    if (!selectedUserId) {
+      setMensaje("Selecciona un usuario para eliminar.");
+      return;
+    }
+    console.log(selectedUserId)
+    try {
+      const res = await fetch(
+        `http://localhost:4000/admin/eliminar-usuario`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({id: selectedUserId}),
+
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.ok) {
+        setMensaje("¡Usuario eliminado correctamente!");
+        // Actualizamos la lista desplegable tras eliminar
+        fetchUsuarios();
+      } else {
+        setMensaje(data.message || "Error al eliminar usuario");
+      }
+    } catch (error) {
+      console.error("Error al eliminar usuario:", error);
+      setMensaje("Error al conectar con el servidor.");
     }
   };
 
@@ -101,7 +163,6 @@ export default function InicioPage() {
         </Button>
       </div>
 
-      {/* Pop-up / Modal */}
       {showModal && (
         <div className={styles.overlay} onClick={handleCloseModal}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -153,7 +214,7 @@ export default function InicioPage() {
                 <Button
                   type="button"
                   className={Buttonstyle.button}
-                  onClick={() => console.log("Eliminar usuario")}
+                  onClick={handleOpenEliminarVista}
                 >
                   Eliminar usuario
                 </Button>
@@ -167,7 +228,7 @@ export default function InicioPage() {
               </div>
             )}
 
-            {/* VISTA 3: FORMULARIO AGREGAR USUARIO */}
+            {/* VISTA 3: AGREGAR USUARIO */}
             {modalView === "agregar_usuario" && (
               <div className={styles.modalContent}>
                 <h2>Agregar Usuario</h2>
@@ -233,6 +294,64 @@ export default function InicioPage() {
                   <Button type="submit" className={Buttonstyle.button}>
                     Agregar
                   </Button>
+                  <Button
+                    type="button"
+                    className={Buttonstyle.button}
+                    onClick={() => {
+                      setMensaje("");
+                      setModalView("usuarios");
+                    }}
+                  >
+                    Volver
+                  </Button>
+                </form>
+              </div>
+            )}
+
+            {modalView === "eliminar_usuario" && (
+              <div className={styles.modalContent}>
+                <h2>Eliminar Usuario</h2>
+
+                <form
+                  onSubmit={handleEliminarUsuario}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  {usuarios.length > 0 ? (
+                    <>
+                      <label htmlFor="select-usuario">
+                        Selecciona un usuario:
+                      </label>
+                      <select
+                        id="select-usuario"
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        style={{
+                          padding: "8px",
+                          borderRadius: "4px",
+                          fontSize: "1rem",
+                        }}
+                      >
+                        {usuarios.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.nombre} ({u.mail})
+                          </option>
+                        ))}
+                      </select>
+
+                      <Button type="submit" className={Buttonstyle.button}>
+                        Borrar Usuario
+                      </Button>
+                    </>
+                  ) : (
+                    <p>No hay usuarios disponibles para eliminar.</p>
+                  )}
+
+                  {mensaje && <p>{mensaje}</p>}
+
                   <Button
                     type="button"
                     className={Buttonstyle.button}

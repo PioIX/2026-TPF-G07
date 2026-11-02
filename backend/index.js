@@ -18,7 +18,16 @@ app.use(
 // 2. Middleware para procesar JSON (resuelve el "Cannot read properties of undefined (reading 'correo')")
 app.use(express.json());
 
-// 3. Middlewares de sesión
+app.get("/chats/:id_usuario", async function (req, res) {
+
+  console.log("Hola esto anda")
+
+  res.send("Hola esto anda")
+})
+
+
+
+    // 3. Middlewares de sesión
 const sessionMiddleware = session({
   secret: "supersarasa",
   resave: false,
@@ -425,6 +434,90 @@ app.post("/admin/agregar-usuario", async function (req, res) {
     });
   }
 });
+
+// OBTENER TODOS LOS USUARIOS (para llenar el desplegable)
+app.get("/admin/usuarios", async function (req, res) {
+  try {
+    let usuarios = await realizarQuery(
+      "SELECT id, nombre, mail FROM UsuariosBakery"
+    );
+    res.send({ ok: true, usuarios: usuarios || [] });
+  } catch (error) {
+    console.error("Error al obtener usuarios:", error);
+    res.status(500).send({ ok: false, message: "Error al obtener la lista de usuarios" });
+  }
+});
+
+// ELIMINAR USUARIO POR ID
+app.delete("/admin/eliminar-usuario", async function (req, res) {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).send({ ok: false, message: "Falta el ID del usuario" });
+    }
+
+    let resultado = await realizarQuery(
+      `DELETE FROM UsuariosBakery WHERE id = ${id}`
+    );
+
+    if (resultado.affectedRows > 0) {
+      res.send({ ok: true, message: "Usuario eliminado correctamente" });
+    } else {
+      res.status(404).send({ ok: false, message: "El usuario no fue encontrado" });
+    }
+  } catch (error) {
+    console.error("Error en /admin/eliminar-usuario:", error);
+    res.status(500).send({
+      ok: false,
+      message: "Error en el servidor al eliminar usuario",
+      error: error.message,
+    });
+  }
+});
+
+// AGREGAR USUARIO (Corregido para coincidir con el campo es_admin del frontend)
+app.post("/admin/agregar-usuario", async function (req, res) {
+  try {
+    const { nombre, mail, contraseña, es_admin } = req.body;
+
+    if (!nombre || !mail || !contraseña) {
+      return res
+        .status(400)
+        .send({ ok: false, message: "Faltan campos requeridos" });
+    }
+
+    let existe = await realizarQuery(
+      "SELECT * FROM UsuariosBakery WHERE mail = ?",
+      [mail]
+    );
+
+    if (existe && existe.length > 0) {
+      return res.send({ ok: false, message: "El mail ya está registrado" });
+    }
+
+    let resultado = await realizarQuery(
+      "INSERT INTO UsuariosBakery (nombre, mail, contraseña, user_administrador) VALUES (?, ?, ?, ?)",
+      [nombre, mail, contraseña, es_admin ? 1 : 0]
+    );
+
+    res.send({
+      ok: true,
+      message: "Usuario creado exitosamente",
+      id_usuario: resultado.insertId,
+    });
+  } catch (error) {
+    console.error("Error en /admin/agregar-usuario:", error);
+    res.status(500).send({
+      ok: false,
+      message: "Error en el servidor al agregar usuario",
+      error: error.message,
+    });
+  }
+});
+
+
+
 
 // LISTADO DE CHATS:
 app.get("/chats/:id_usuario", async function (req, res) {
