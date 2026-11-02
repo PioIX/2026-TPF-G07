@@ -18,7 +18,16 @@ app.use(
 // 2. Middleware para procesar JSON (resuelve el "Cannot read properties of undefined (reading 'correo')")
 app.use(express.json());
 
-// 3. Middlewares de sesión
+app.get("/chats/:id_usuario", async function (req, res) {
+
+  console.log("Hola esto anda")
+
+  res.send("Hola esto anda")
+})
+
+
+
+    // 3. Middlewares de sesión
 const sessionMiddleware = session({
   secret: "supersarasa",
   resave: false,
@@ -63,7 +72,7 @@ function enviarSalas() {
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
   const req = socket.request;
-  
+
   socket.on("pedirEstadoSala", ({ id }) => {
     const sala = salas.get(id);
 
@@ -80,10 +89,8 @@ io.on("connection", (socket) => {
       creador: sala.creador,
       jugadores: sala.jugadores,
       empezada: sala.empezada,
-
     });
   });
-
 
   // CREAR SALA
   socket.on("crearSala", ({ nombre, contrasena, jugador }) => {
@@ -101,15 +108,11 @@ io.on("connection", (socket) => {
     }
 
     const existe = [...salas.values()].some(
-      (sala) =>
-        sala.nombre.toLowerCase() === nombre.toLowerCase()
+      (sala) => sala.nombre.toLowerCase() === nombre.toLowerCase()
     );
 
     if (existe) {
-      return socket.emit(
-        "errorSala",
-        "Ya existe una sala con ese nombre."
-      );
+      return socket.emit("errorSala", "Ya existe una sala con ese nombre.");
     }
 
     const id = nombre.toLowerCase();
@@ -138,7 +141,7 @@ io.on("connection", (socket) => {
       nombre: sala.nombre,
       jugadores: sala.jugadores,
       empezada: sala.empezada,
-      creador: sala.creador
+      creador: sala.creador,
     });
 
     enviarSalas();
@@ -153,17 +156,11 @@ io.on("connection", (socket) => {
     }
 
     if (sala.empezada) {
-      return socket.emit(
-        "errorSala",
-        "La competencia ya comenzó."
-      );
+      return socket.emit("errorSala", "La competencia ya comenzó.");
     }
 
     if (sala.contrasena !== contrasena) {
-      return socket.emit(
-        "errorSala",
-        "La contraseña es incorrecta."
-      );
+      return socket.emit("errorSala", "La contraseña es incorrecta.");
     }
 
     if (sala.jugadores.some((p) => p.id === socket.id)) {
@@ -184,7 +181,7 @@ io.on("connection", (socket) => {
       nombre: sala.nombre,
       jugadores: sala.jugadores,
       empezada: sala.empezada,
-      creador: sala.creador      
+      creador: sala.creador,
     });
 
     socket.emit("salaUnida", {
@@ -218,17 +215,11 @@ io.on("connection", (socket) => {
     }
 
     if (sala.creador !== socket.id) {
-      return socket.emit(
-        "errorSala",
-        "Solo quien creó la sala puede empezar."
-      );
+      return socket.emit("errorSala", "Solo quien creó la sala puede empezar.");
     }
 
     if (sala.jugadores.length < 2) {
-      return socket.emit(
-        "errorSala",
-        "Necesitás al menos 2 jugadores."
-      );
+      return socket.emit("errorSala", "Necesitás al menos 2 jugadores.");
     }
 
     sala.empezada = true;
@@ -288,43 +279,39 @@ io.on("connection", (socket) => {
     socket.emit("respuestaPersonalizada", { contador });
   });
 
-socket.on("disconnect", () => {
-  console.log("Disconnect:", socket.id);
+  socket.on("disconnect", () => {
+    console.log("Disconnect:", socket.id);
 
-  for (const [id, sala] of salas.entries()) {
-    const estabaEnSala = sala.jugadores.some(
-      (jugador) => jugador.id === socket.id
-    );
-
-    if (!estabaEnSala) continue;
-
-    sala.jugadores = sala.jugadores.filter(
-      (jugador) => jugador.id !== socket.id
-    );
-
-    // Si se va el creador, eliminamos la sala.
-    if (sala.creador === socket.id) {
-      io.to(id).emit(
-        "errorSala",
-        "El creador salió. La sala se cerró."
+    for (const [id, sala] of salas.entries()) {
+      const estabaEnSala = sala.jugadores.some(
+        (jugador) => jugador.id === socket.id
       );
 
-      salas.delete(id);
-      continue;
+      if (!estabaEnSala) continue;
+
+      sala.jugadores = sala.jugadores.filter(
+        (jugador) => jugador.id !== socket.id
+      );
+
+      // Si se va el creador, eliminamos la sala.
+      if (sala.creador === socket.id) {
+        io.to(id).emit("errorSala", "El creador salió. La sala se cerró.");
+
+        salas.delete(id);
+        continue;
+      }
+
+      io.to(id).emit("actualizarSala", {
+        id: sala.id,
+        nombre: sala.nombre,
+        jugadores: sala.jugadores,
+        empezada: sala.empezada,
+        creador: sala.creador,
+      });
     }
 
-    io.to(id).emit("actualizarSala", {
-      id: sala.id,
-      nombre: sala.nombre,
-      jugadores: sala.jugadores,
-      empezada: sala.empezada,
-      creador: sala.creador
-    });
-  }
-
-  enviarSalas();
-});
-
+    enviarSalas();
+  });
 });
 
 ////////////////////
@@ -333,7 +320,7 @@ socket.on("disconnect", () => {
 
 app.post("/registro", async function (req, res) {
   try {
-    const { nombre, mail, contraseña} = req.body;
+    const { nombre, mail, contraseña } = req.body;
 
     let respuesta = await realizarQuery(
       "SELECT * FROM UsuariosBakery WHERE mail = ?",
@@ -348,7 +335,7 @@ app.post("/registro", async function (req, res) {
       "INSERT INTO UsuariosBakery (nombre, mail, contraseña) VALUES (?, ?, ?)",
       [nombre, mail, contraseña || null]
     );
-      
+
     res.send({
       ok: true,
       message: "Usuario Agregado",
@@ -396,9 +383,141 @@ app.post("/login", async function (req, res) {
       res.send({ message: "Usuario inexistente" });
     }
   } catch (error) {
-    res.status(500).send({ message: "Error al Conectarse", error: error.message });
+    res
+      .status(500)
+      .send({ message: "Error al Conectarse", error: error.message });
   }
 });
+
+///////////////////
+//FUNCIONES ADMIN//
+///////////////////
+
+app.post("/admin/agregar-usuario", async function (req, res) {
+  try {
+    const { nombre, mail, contraseña, user_administrador } = req.body;
+
+    // 1. Validar que no falten datos obligatorios
+    if (!nombre || !mail || !contraseña) {
+      return res
+        .status(400)
+        .send({ ok: false, message: "Faltan campos requeridos" });
+    }
+
+    // 2. Verificar si el correo ya existe
+    let existe = await realizarQuery(
+      "SELECT * FROM UsuariosBakery WHERE mail = ?",
+      [mail]
+    );
+
+    if (existe && existe.length > 0) {
+      return res.send({ ok: false, message: "El mail ya está registrado" });
+    }
+
+    // 3. Insertar nuevo usuario (es_admin será 1 si es verdadero, o 0 si es falso)
+    let resultado = await realizarQuery(
+      "INSERT INTO UsuariosBakery (nombre, mail, contraseña, user_administrador) VALUES (?, ?, ?, ?)",
+      [nombre, mail, contraseña, user_administrador ? 1 : 0]
+    );
+
+    res.send({
+      ok: true,
+      message: "Usuario creado exitosamente",
+      id_usuario: resultado.insertId,
+    });
+  } catch (error) {
+    console.error("Error en /admin/agregar-usuario:", error);
+    res.status(500).send({
+      ok: false,
+      message: "Error en el servidor al agregar usuario",
+      error: error.message,
+    });
+  }
+});
+
+// OBTENER TODOS LOS USUARIOS (para llenar el desplegable)
+app.get("/admin/usuarios", async function (req, res) {
+  try {
+    let usuarios = await realizarQuery(
+      "SELECT id, nombre, mail FROM UsuariosBakery"
+    );
+    res.send({ ok: true, usuarios: usuarios || [] });
+  } catch (error) {
+    console.error("Error al obtener usuarios:", error);
+    res.status(500).send({ ok: false, message: "Error al obtener la lista de usuarios" });
+  }
+});
+
+// ELIMINAR USUARIO POR ID
+app.delete("/admin/eliminar-usuario", async function (req, res) {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).send({ ok: false, message: "Falta el ID del usuario" });
+    }
+
+    let resultado = await realizarQuery(
+      `DELETE FROM UsuariosBakery WHERE id = ${id}`
+    );
+
+    if (resultado.affectedRows > 0) {
+      res.send({ ok: true, message: "Usuario eliminado correctamente" });
+    } else {
+      res.status(404).send({ ok: false, message: "El usuario no fue encontrado" });
+    }
+  } catch (error) {
+    console.error("Error en /admin/eliminar-usuario:", error);
+    res.status(500).send({
+      ok: false,
+      message: "Error en el servidor al eliminar usuario",
+      error: error.message,
+    });
+  }
+});
+
+// AGREGAR USUARIO (Corregido para coincidir con el campo es_admin del frontend)
+app.post("/admin/agregar-usuario", async function (req, res) {
+  try {
+    const { nombre, mail, contraseña, es_admin } = req.body;
+
+    if (!nombre || !mail || !contraseña) {
+      return res
+        .status(400)
+        .send({ ok: false, message: "Faltan campos requeridos" });
+    }
+
+    let existe = await realizarQuery(
+      "SELECT * FROM UsuariosBakery WHERE mail = ?",
+      [mail]
+    );
+
+    if (existe && existe.length > 0) {
+      return res.send({ ok: false, message: "El mail ya está registrado" });
+    }
+
+    let resultado = await realizarQuery(
+      "INSERT INTO UsuariosBakery (nombre, mail, contraseña, user_administrador) VALUES (?, ?, ?, ?)",
+      [nombre, mail, contraseña, es_admin ? 1 : 0]
+    );
+
+    res.send({
+      ok: true,
+      message: "Usuario creado exitosamente",
+      id_usuario: resultado.insertId,
+    });
+  } catch (error) {
+    console.error("Error en /admin/agregar-usuario:", error);
+    res.status(500).send({
+      ok: false,
+      message: "Error en el servidor al agregar usuario",
+      error: error.message,
+    });
+  }
+});
+
+
+
 
 // LISTADO DE CHATS:
 app.get("/chats/:id_usuario", async function (req, res) {
