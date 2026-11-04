@@ -33,6 +33,15 @@ const PASTEL = { src: "/objetosDecoracion/pastelHorneado.png", x: 50, y: 54, w: 
 // Cuánto más grande se ve la herramienta al agarrarla, respecto del objeto de la mesada
 const TOOL_ESCALA = 1.1;
 
+// Bowl de grageas: al arrastrarlo se inclina como si lo estuvieras volcando.
+// TILT_GRAGEAS: ángulo en radianes (negativo = se inclina hacia la izquierda, -0.95 ≈ 55°).
+// BORDE_GRAGEAS: de dónde caen las grageas, medido desde el centro de la imagen
+// del bowl en fracción de su ancho (dx negativo = borde izquierdo, dy negativo = hacia arriba).
+// Si las grageas no salen justo del borde, ajustá estos dos números (con DEBUG_PUNTA = true se ve el punto).
+const TILT_GRAGEAS = -0.95;
+const TILT_MS = 300; // cuánto tarda en inclinarse
+const BORDE_GRAGEAS = { dx: -0.4, dy: -0.14 };
+
 // Colores
 const CREMAS = {
   cremaRosa: { base: "#ff7fa8", claro: "#ffc9da" },
@@ -55,16 +64,20 @@ const PASOS = [
   { id: "crema",   nombre: "Elegí una crema",      objetos: ["cremaRosa", "cremaLila"] },
   { id: "cubrir",  nombre: "Cubrí el pastel",      objetos: ["espatula"], punta: "derecha" },
   { id: "manga",   nombre: "Decorá con la manga",  objetos: ["mangaAmarilla", "mangaAzul"], punta: "abajo" },
-  { id: "grageas", nombre: "Agregá grageas",       objetos: ["grageas"], punta: "abajo" },
+  { id: "grageas", nombre: "Agregá grageas",       objetos: ["grageas"], punta: "borde" },
 ];
 
-const RADIO_CREMA = 24;  // grosor de la espátula (px lógicos)
-const META_COBERTURA = 0.88; // % del pastel que hay que cubrir
-const META_PUNTOS = 26;  // estrellitas de manga
-const META_GRAGEAS = 50; // grageas
-const ESP_CREMA = 5;     // distancia entre "sellos" de crema
-const ESP_MANGA = 16;    // distancia entre estrellitas
-const ESP_GRAGEAS = 9;   // distancia entre tandas de grageas
+const PASO_MANGA = PASOS.findIndex((p) => p.id === "manga");
+const PASO_GRAGEAS = PASOS.findIndex((p) => p.id === "grageas");
+
+const RADIO_CREMA = 24;       // grosor de la espátula (px lógicos)
+const META_COBERTURA = 0.95;  // % del pastel que hay que cubrir (al llegar, se rellena el resto)
+const META_PUNTOS = 90;       // estrellitas de manga
+const META_GRAGEAS = 800;     // grageas (antes 260: ahora el paso dura bastante más)
+const ESP_CREMA = 5;          // distancia entre "sellos" de crema
+const ESP_MANGA = 14;         // distancia entre estrellitas
+const ESP_GRAGEAS = 7;        // distancia entre tandas de grageas
+const PASO_RELLENO = 8;       // separación de los sellos del relleno final de crema
 
 // Cuadrícula para medir cuánto del pastel está cubierto
 const GX = 40;
@@ -135,7 +148,7 @@ function puntaDe(img, modo) {
   return { dx: tx / cw - 0.5, dy: (ty / ch - 0.5) * (ch / cw) };
 }
 
-function EscenaDecorar({ onPaso, onProgreso, onFin }) {
+function EscenaDecorar({ onPaso, onProgreso, onFin, terminarRef }) {
   const canvasRef = useRef(null);
   const onPasoRef = useRef(onPaso);
   const onProgresoRef = useRef(onProgreso);
@@ -208,7 +221,7 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
     const tipOff = (c) => {
       const k = c.step.punta ?? "abajo";
       const key = c.obj.id + k;
-      if (!s.puntas[key]) s.puntas[key] = puntaDe(imgs[c.obj.id], k);
+      if (!s.puntas[key]) s.puntas[key] = k === "borde" ? BORDE_GRAGEAS : puntaDe(imgs[c.obj.id], k);
       return s.puntas[key];
     };
 
@@ -319,6 +332,18 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
       }
     }
 
+    // Al llegar a la meta, cubre lo que haya quedado sin crema (bordes, costado del pastel)
+    function rellenarCrema() {
+      const c = s.cake;
+      if (!c || !s.cremaCol) return;
+      for (let y = 0; y < c.h; y += PASO_RELLENO) {
+        for (let x = 0; x < c.w; x += PASO_RELLENO) {
+          if (enCake(x, y)) estamparCrema(x, y);
+        }
+      }
+      s.nCov = s.nValid;
+    }
+
     function estamparEstrella(lx, ly) {
       const d = s.dctx;
       const col = s.mangaCol;
@@ -347,7 +372,7 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
 
     function estamparGragea(lx, ly) {
       const d = s.dctx;
-      const w = 9, h = 3.6;
+      const w = 11, h = 4.4;
       d.save();
       d.translate(lx, ly);
       d.rotate(Math.random() * Math.PI);
@@ -412,9 +437,9 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
         s.progreso = clamp(s.puntos / META_PUNTOS);
       } else if (id === "grageas") {
         recorrer(c, lx, ly, ESP_GRAGEAS, (x, y) => {
-          for (let i = 0; i < 2; i++) {
-            const gx = x + rand(-14, 14);
-            const gy = y + rand(-6, 16);
+          for (let i = 0; i < 3; i++) {
+            const gx = x + rand(-16, 16);
+            const gy = y + rand(-8, 18);
             if (enCake(gx, gy)) {
               estamparGragea(gx, gy);
               s.grageas++;
@@ -427,6 +452,7 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
     }
 
     function completar(c) {
+      if (PASOS[s.paso]?.id === "cubrir") rellenarCrema();
       const ahora = performance.now();
       c.modo = "sale";
       c.t0 = ahora;
@@ -488,7 +514,7 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
       if (!img) return;
       const w = toolW(c.obj);
       const home = homeDe(c.obj);
-      let x = c.x, y = c.y, scale = 1, alpha = 1, sombra = 4;
+      let x = c.x, y = c.y, scale = 1, alpha = 1, sombra = 4, rot = 0;
       let tip = null;
 
       if (c.modo === "aparece") {
@@ -502,28 +528,40 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
       } else if (c.modo === "arrastre") {
         // la herramienta se acomoda para que su punta quede justo bajo el puntero
         const k = ease(clamp((ahora - c.snapT0) / 150));
-        c.x = s.ptr.x + lerp(c.off0.dx, c.offT.dx, k);
-        c.y = s.ptr.y + lerp(c.off0.dy, c.offT.dy, k);
+        // el bowl de grageas se inclina; el resto de las herramientas no
+        rot = c.step.id === "grageas" ? TILT_GRAGEAS * ease(clamp((ahora - c.snapT0) / TILT_MS)) : 0;
+        c.rot = rot;
+        const t = tipOff(c);
+        // la punta, ya girada, tiene que quedar justo bajo el puntero
+        const cs = Math.cos(rot), sn = Math.sin(rot);
+        const rx = (t.dx * cs - t.dy * sn) * w;
+        const ry = (t.dx * sn + t.dy * cs) * w;
+        c.x = s.ptr.x + lerp(c.off0.dx, -rx, k);
+        c.y = s.ptr.y + lerp(c.off0.dy, -ry, k);
         x = c.x;
         y = c.y;
         sombra = 10;
-        const t = tipOff(c);
-        tip = { x: x + t.dx * w, y: y + t.dy * w };
+        tip = { x: x + rx, y: y + ry };
         if (k >= 1) pintar(c, tip);
         else c.lastTip = null;
       } else if (c.modo === "vuelve") {
         const t = ease(clamp((ahora - c.t0) / 250));
         x = c.x = lerp(c.desdeX, home.x, t);
         y = c.y = lerp(c.desdeY, home.y, t);
-        if (t >= 1) c.modo = "quieta";
+        rot = (c.rot ?? 0) * (1 - t); // se endereza mientras vuelve
+        if (t >= 1) {
+          c.modo = "quieta";
+          c.rot = 0;
+        }
       } else if (c.modo === "sale") {
+        rot = c.rot ?? 0;
         alpha = 1 - clamp((ahora - c.t0) / 350);
         if (alpha <= 0) {
           s.mano = null;
           return;
         }
       }
-      sprite(img, x, y, w, { scale, alpha, sombra });
+      sprite(img, x, y, w, { scale, alpha, sombra, rot });
 
       if (DEBUG_PUNTA && tip) {
         ctx.save();
@@ -698,6 +736,16 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
       s.hover = null;
     }
 
+    // Termina el paso actual (manga o grageas) antes de llegar a la meta (botón "Terminé")
+    function terminarPaso() {
+      const id = PASOS[s.paso]?.id;
+      const hizoAlgo = id === "manga" ? s.puntos > 0 : id === "grageas" ? s.grageas > 0 : false;
+      if (!hizoAlgo) return;
+      canvas.style.cursor = "default";
+      completar(s.mano ?? {});
+    }
+    if (terminarRef) terminarRef.current = terminarPaso;
+
     // ---------- arranque ----------
     (async () => {
       await Promise.all(
@@ -715,6 +763,7 @@ function EscenaDecorar({ onPaso, onProgreso, onFin }) {
     canvas.addEventListener("pointerleave", onLeave);
     return () => {
       vivo = false;
+      if (terminarRef) terminarRef.current = null;
       cancelAnimationFrame(raf);
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
@@ -776,11 +825,30 @@ export default function DecorarPastelPage() {
   const [paso, setPaso] = useState(0);
   const [progreso, setProgreso] = useState(0);
   const [fin, setFin] = useState(false);
+  const terminarRef = useRef(null);
+
+  // Aparece en la manga y en las grageas, apenas pusiste el primer adorno
+  const puedeTerminar = (paso === PASO_MANGA || paso === PASO_GRAGEAS) && progreso > 0;
 
   return (
     <main className={styles.game}>
-      <EscenaDecorar onPaso={setPaso} onProgreso={setProgreso} onFin={() => setFin(true)} />
+      <EscenaDecorar
+        onPaso={setPaso}
+        onProgreso={setProgreso}
+        onFin={() => setFin(true)}
+        terminarRef={terminarRef}
+      />
       <Pasos paso={paso} progreso={progreso} />
+
+      {/* Terminar la manga o las grageas antes de completar la barra */}
+      {puedeTerminar && (
+        <div className={styles.siguiente}>
+          <Button type="button" onClick={() => terminarRef.current?.()}>
+            <span>Terminé</span>
+            <span aria-hidden="true">✓</span>
+          </Button>
+        </div>
+      )}
 
       {/* Cuando terminás de decorar: botón abajo a la derecha */}
       {fin && (
