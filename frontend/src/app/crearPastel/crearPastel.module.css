@@ -209,3 +209,60 @@
     animation: none;
   }
 }
+
+/* ---------- Cuadro de instrucciones ---------- */
+.instrucciones {
+  position: absolute;
+  left: 3%;
+  top: 5%;
+  z-index: 20;
+
+  width: clamp(220px, 20vw, 310px);
+  box-sizing: border-box;
+  padding: 18px 20px;
+
+  background: rgba(255, 205, 225, 0.82);
+  border: 3px solid #ed8db5;
+  border-radius: 20px;
+
+  color: #713d55;
+  font-family: Georgia, "Times New Roman", serif;
+
+  box-shadow: 0 5px 12px rgba(120, 55, 85, 0.2);
+
+  animation: instruccionesEntran 0.5s ease both;
+}
+
+.instruccionesTitulo {
+  margin: 0 0 10px;
+  color: #bd5d89;
+  font-size: clamp(18px, 1.5vw, 23px);
+  font-weight: bold;
+  text-align: center;
+}
+
+.instruccionesTexto {
+  margin: 0;
+  font-size: clamp(14px, 1.1vw, 17px);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.instruccionesDecoracion {
+  display: block;
+  margin-top: 10px;
+  color: #d878a1;
+  font-size: 20px;
+  text-align: center;
+}
+
+@keyframes instruccionesEntran {
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

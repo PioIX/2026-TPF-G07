@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./decorarPastel.module.css";
 import Button from "@/components/Button"; // ajustá la ruta a donde esté tu componente
+import { guardarPastel } from "../finCompetencia/PastelesFinales";
 
 // Resolución lógica del canvas = tamaño de mesada.png
 const W = 1219;
@@ -12,7 +13,7 @@ const px = (p) => (p / 100) * W; // % del ancho -> px lógicos
 const py = (p) => (p / 100) * H; // % del alto  -> px lógicos
 
 // A dónde lleva el botón cuando terminás de decorar (cambialo por tu ruta)
-const RUTA_FIN = "/";
+const RUTA_FIN = "/finCompetencia";
 const FIN_DELAY = 1200; // ms entre el último paso y la aparición del botón
 
 // x, y = centro (% de la escena), w = ancho (% del ancho)
@@ -71,9 +72,9 @@ const PASO_MANGA = PASOS.findIndex((p) => p.id === "manga");
 const PASO_GRAGEAS = PASOS.findIndex((p) => p.id === "grageas");
 
 const RADIO_CREMA = 24;       // grosor de la espátula (px lógicos)
-const META_COBERTURA = 0.95;  // % del pastel que hay que cubrir (al llegar, se rellena el resto)
+const META_COBERTURA = 1;     // % del pastel que hay que cubrir (al llegar, se rellena el resto)
 const META_PUNTOS = 90;       // estrellitas de manga
-const META_GRAGEAS = 800;     // grageas (antes 260: ahora el paso dura bastante más)
+const META_GRAGEAS = 900;     // grageas (antes 260: ahora el paso dura bastante más)
 const ESP_CREMA = 5;          // distancia entre "sellos" de crema
 const ESP_MANGA = 14;         // distancia entre estrellitas
 const ESP_GRAGEAS = 7;        // distancia entre tandas de grageas
@@ -83,6 +84,7 @@ const PASO_RELLENO = 8;       // separación de los sellos del relleno final de 
 const GX = 40;
 const GY = 26;
 
+const CONTORNO_EXPORT = 3; // px extra alrededor del pastel al exportarlo (para no cortar el contorno oscuro)
 const DEBUG_MASK = false;  // true: tiñe de rojo la zona del pastel donde se puede decorar
 const DEBUG_PUNTA = false; // true: punto rojo en la punta de la herramienta
 
@@ -459,6 +461,7 @@ function EscenaDecorar({ onPaso, onProgreso, onFin, terminarRef }) {
       s.paso++;
       s.progreso = 0;
       if (s.paso >= PASOS.length) {
+        guardarPastel(exportarPastel()); // guarda la torta terminada para /finCompetencia
         s.fin = { t0: ahora };
         const cake = s.cake;
         const cols = ["#ffe27a", "#ffffff", "#ff9ec4", "#9be7ff"];
@@ -494,17 +497,87 @@ function EscenaDecorar({ onPaso, onProgreso, onFin, terminarRef }) {
       ctx.restore();
     }
 
-    // La decoración se recorta con la máscara: nunca se sale del pastel
-    function dibujarDeco() {
-      const c = s.cake;
-      if (!c || !s.hayDeco) return;
+    // Compone la decoración recortada con la máscara: nunca se sale del pastel
+    function componerDeco() {
       const cc = s.compCtx;
       cc.globalCompositeOperation = "source-over";
       cc.clearRect(0, 0, s.comp.width, s.comp.height);
       cc.drawImage(s.deco, 0, 0);
       cc.globalCompositeOperation = "destination-in";
       cc.drawImage(s.mask, 0, 0);
+    }
+
+    function dibujarDeco() {
+      const c = s.cake;
+      if (!c || !s.hayDeco) return;
+      componerDeco();
       ctx.drawImage(s.comp, c.left, c.top, c.w, c.h);
+    }
+
+    // La torta terminada como PNG transparente: SOLO el pastel (sin el plato),
+    // recortada justo al borde, así su base queda en el borde inferior de la imagen.
+    function exportarPastel() {
+      if (!s.cake || !imgs.pastel || !s.maskAlpha) return null;
+      try {
+        const mw = s.comp.width;
+        const mh = s.comp.height;
+        const a = s.maskAlpha;
+
+        // caja que rodea al pastel (según la máscara)
+        let x0 = mw, y0 = mh, x1 = -1, y1 = -1;
+        for (let y = 0; y < mh; y++) {
+          for (let x = 0; x < mw; x++) {
+            if (a[(y * mw + x) * 4 + 3] > 128) {
+              if (x < x0) x0 = x;
+              if (x > x1) x1 = x;
+              if (y < y0) y0 = y;
+              if (y > y1) y1 = y;
+            }
+          }
+        }
+        if (x1 < 0) return null;
+        const m = CONTORNO_EXPORT;
+        x0 = Math.max(0, x0 - m);
+        y0 = Math.max(0, y0 - m);
+        x1 = Math.min(mw - 1, x1 + m);
+        y1 = Math.min(mh - 1, y1 + m);
+
+        // máscara un poco más gruesa, para conservar el contorno del pastel
+        const gruesa = document.createElement("canvas");
+        gruesa.width = mw;
+        gruesa.height = mh;
+        const gg = gruesa.getContext("2d");
+        for (let i = 0; i < 12; i++) {
+          const ang = (i / 12) * Math.PI * 2;
+          gg.drawImage(s.mask, Math.cos(ang) * m, Math.sin(ang) * m);
+        }
+        gg.drawImage(s.mask, 0, 0);
+
+        // pastel (sin plato) + decoración
+        const tmp = document.createElement("canvas");
+        tmp.width = mw;
+        tmp.height = mh;
+        const tg = tmp.getContext("2d");
+        tg.drawImage(imgs.pastel, 0, 0, mw, mh);
+        tg.globalCompositeOperation = "destination-in";
+        tg.drawImage(gruesa, 0, 0);
+        tg.globalCompositeOperation = "source-over";
+        if (s.hayDeco) {
+          componerDeco();
+          tg.drawImage(s.comp, 0, 0);
+        }
+
+        // recortar a la caja
+        const ow = x1 - x0 + 1;
+        const oh = y1 - y0 + 1;
+        const out = document.createElement("canvas");
+        out.width = ow;
+        out.height = oh;
+        out.getContext("2d").drawImage(tmp, x0, y0, ow, oh, 0, 0, ow, oh);
+        return out.toDataURL("image/png");
+      } catch {
+        return null;
+      }
     }
 
     function dibujarMano(ahora) {
@@ -820,6 +893,39 @@ function Pasos({ paso, progreso }) {
   );
 }
 
+function Instrucciones({ paso, fin }) {
+  let titulo = "¡Paso 3: Decorar el pastel!";
+  let mensaje = "Elegí la crema que más te guste para comenzar a decorar tu pastel.";
+
+  if (paso === 1) {
+    titulo = "¡A cubrir el pastel!";
+    mensaje = "Utilizá la espátula para cubrir todo el pastel con la crema elegida.";
+  }
+
+  if (paso === 2) {
+    titulo = "¡A darle un toque especial!";
+    mensaje = "Decorá tu pastel con la manga y agregale detalles para hacerlo único.";
+  }
+
+  if (paso === 3) {
+    titulo = "¡Los últimos detalles!";
+    mensaje = "Agregá grageas para darle el toque final a tu pastel.";
+  }
+
+  if (paso >= 4 || fin) {
+    titulo = "¡Pastel decorado!";
+    mensaje = "¡Excelente trabajo! Tu pastel está terminado. Hacé clic en ¡Listo! para finalizar.";
+  }
+
+  return (
+    <aside className={styles.instrucciones}>
+      <h3 className={styles.instruccionesTitulo}>{titulo}</h3>
+      <p className={styles.instruccionesTexto}>{mensaje}</p>
+      <span className={styles.instruccionesDecoracion}></span>
+    </aside>
+  );
+}
+
 export default function DecorarPastelPage() {
   const router = useRouter();
   const [paso, setPaso] = useState(0);
@@ -838,6 +944,9 @@ export default function DecorarPastelPage() {
         onFin={() => setFin(true)}
         terminarRef={terminarRef}
       />
+
+      <Instrucciones paso={paso} fin={fin} />
+
       <Pasos paso={paso} progreso={progreso} />
 
       {/* Terminar la manga o las grageas antes de completar la barra */}
