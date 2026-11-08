@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import styles from "./finCopetencia.module.css";
-import { leerPasteles } from "./PastelesFinales";
+import { suscribirPasteles } from "./PastelesFinales";
 
 const FONDO = "/FinPastel.png";
 
@@ -12,23 +12,29 @@ const FONDO = "/FinPastel.png";
 //  w = ancho de la torta
 // Si no cae justo sobre el soporte, cambiá estos números (con DEBUG = true se ve un punto rojo en x,y).
 const POSICIONES = [
-  { x: 29, y: 70, w: 21 }, // jugador 1 (soporte izquierdo)
-  { x: 71.1, y: 70, w: 21 }, // jugador 2 (soporte derecho)
+  { x: 29.1, y: 67, w: 21 }, // jugador 1 (soporte izquierdo)
+  { x: 71.1, y: 67, w: 21 }, // jugador 2 (soporte derecho)
 ];
 const DEBUG = false;
 
 export default function FinCompetencia() {
   const [pasteles, setPasteles] = useState([null, null]);
   const [ratio, setRatio] = useState(16 / 9); // proporción de FinPastel.png (se mide sola)
+  const [conectado, setConectado] = useState(false);
 
   useEffect(() => {
     document.title = "Petit Bakery";
-    setPasteles(leerPasteles());
 
     // medir la imagen de fondo para que las tortas queden pegadas a ella
     const im = new Image();
     im.onload = () => setRatio(im.naturalWidth / im.naturalHeight);
     im.src = FONDO;
+
+    // las tortas llegan por socket: cada jugador ve la del otro apenas la termina
+    return suscribirPasteles((e) => {
+      setPasteles(e.pasteles);
+      setConectado(e.conectado);
+    });
   }, []);
 
   return (
@@ -49,10 +55,16 @@ export default function FinCompetencia() {
                 }}
               />
             )}
+            {!pasteles[i] && (
+              <span className={styles.espera} style={{ left: `${p.x}%`, top: `${p.y - 9}%` }}>
+                Esperando al jugador {i + 1}…
+              </span>
+            )}
             {DEBUG && <span className={styles.punto} style={{ left: `${p.x}%`, top: `${p.y}%` }} />}
           </div>
         ))}
       </div>
+      {!conectado && <p className={styles.estado}>Conectando con el otro jugador…</p>}
     </main>
   );
 }
