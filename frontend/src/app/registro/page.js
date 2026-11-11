@@ -55,6 +55,7 @@ export default function RegistroPage() {
       }
     } catch (error) {
       console.error("Error al registrarse:", error);
+      console.log(BACKEND_URL)
       setMensajeError("No se pudo conectar con el servidor backend.");
     } finally {
       setEnviando(false);

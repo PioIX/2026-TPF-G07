@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
@@ -229,6 +230,13 @@ io.on("connection", (socket) => {
 ////////////////////
 // REGISTRO
 ////////////////////
+app.get("/", (req, res) => {
+  res.status(200).json({
+    mensaje: "¡Backend funcionando correctamente!",
+    estado: "OK",
+  });
+  console.log("holaaa")
+});
 
 app.post("/registro", async function (req, res) {
   try {
