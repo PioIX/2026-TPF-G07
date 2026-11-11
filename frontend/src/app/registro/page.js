@@ -7,6 +7,7 @@ import Inputstyles from "@/components/Input.module.css";
 import Input from "@/components/Input";
 import Button from "@/components/Button";
 import Buttonstyle from "@/components/Button.module.css";
+import BACKEND_URL from "@/config/backend.js"
 
 export default function RegistroPage() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function RegistroPage() {
 
     try {
       // Ajustá la URL y los nombres de los campos a los de tu backend
-      const respuesta = await fetch("http://localhost:4000/registro", {
+      const respuesta = await fetch("BACKEND_URL/registro", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

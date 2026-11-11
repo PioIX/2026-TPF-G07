@@ -7,6 +7,7 @@ import Inputstyles from "@/components/Input.module.css";
 import Input from "@/components/Input";
 import Button from "@/components/Button";
 import Buttonstyle from "@/components/Button.module.css";
+import BACKEND_URL from "@/config/backend.js"
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function LoginPage() {
 
     try {
       console.log(formData)
-      const respuesta = await fetch("http://localhost:4000/login", {
+      const respuesta = await fetch("BACKEND_URL/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
