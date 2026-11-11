@@ -7,6 +7,7 @@ import Button from "@/components/Button";
 import Buttonstyle from "@/components/Button.module.css";
 import Input from "@/components/Input";
 import Inputstyles from "@/components/Input.module.css";
+import { BACKEND_URL } from "@/config/backend";
 
 export default function InicioPage() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function InicioPage() {
   const fetchUsuarios = async () => {
     setMensaje("");
     try {
-      const res = await fetch("http://localhost:4000/admin/usuarios");
+      const res = await fetch(`${BACKEND_URL}/admin/usuarios`);
       const data = await res.json();
       if (data.ok) {
         setUsuarios(data.usuarios);
@@ -86,7 +87,7 @@ export default function InicioPage() {
     setMensaje("");
 
     try {
-      const res = await fetch("http://localhost:4000/admin/agregar-usuario", {
+      const res = await fetch(`${BACKEND_URL}/admin/agregar-usuario`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -120,7 +121,7 @@ export default function InicioPage() {
     console.log(selectedUserId)
     try {
       const res = await fetch(
-        `http://localhost:4000/admin/eliminar-usuario`,
+        `${BACKEND_URL}/admin/eliminar-usuario`,
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },

@@ -37,7 +37,7 @@ export default function LoginPage() {
 
     try {
       console.log(formData)
-      const respuesta = await fetch("BACKEND_URL/login", {
+      const respuesta = await fetch(`${BACKEND_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
