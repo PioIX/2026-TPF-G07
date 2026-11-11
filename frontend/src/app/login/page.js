@@ -7,8 +7,7 @@ import Inputstyles from "@/components/Input.module.css";
 import Input from "@/components/Input";
 import Button from "@/components/Button";
 import Buttonstyle from "@/components/Button.module.css";
-import BACKEND_URL from "@/config/backend.js"
-
+import { BACKEND_URL } from "@/config/backend.js";
 export default function LoginPage() {
   const router = useRouter();
 
