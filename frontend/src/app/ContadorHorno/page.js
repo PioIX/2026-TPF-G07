@@ -6,7 +6,7 @@ import Button from "@/components/Button";
 import Buttonstyle from "@/components/Button.module.css";
 
 const META = 10;
-const RUTA_PASO_3 = "/decorarPastel";
+const RUTA_PASO_3 = "/competencia3";
 
 export default function ContadorHornoPage() {
   const router = useRouter();
@@ -36,8 +36,13 @@ export default function ContadorHornoPage() {
 
   return (
     <main className={styles.game}>
-      {horneado && (
-        <>
+          <Instrucciones
+  toques={toques}
+  horneado={horneado}
+/>
+      
+      {horneado && (<>
+
           <div className={styles.resultado}>
             <img
               src="/pastel-horneado.png"
@@ -90,5 +95,36 @@ export default function ContadorHornoPage() {
         </div>
       )}
     </main>
+  );
+}
+
+function Instrucciones({ toques, horneado }) {
+  let titulo = "¡Paso 2: Hornear la mezcla!";
+  let mensaje = "Presioná el botón Hornear para comenzar a preparar tu pastel.";
+
+  if (toques > 0 && !horneado) {
+    titulo = "¡Seguí horneando!";
+    mensaje = "Continuá presionando el botón Hornear hasta completar la barra de progreso.";
+  }
+
+  if (horneado) {
+    titulo = "¡Pastel horneado!";
+    mensaje = "¡Muy bien! Tu pastel está listo. Hacé clic en Paso 3 para continuar.";
+  }
+
+  return (
+    <aside className={styles.instrucciones}>
+      <h3 className={styles.instruccionesTitulo}>
+         {titulo} 
+      </h3>
+
+      <p className={styles.instruccionesTexto}>
+        {mensaje}
+      </p>
+
+      <span className={styles.instruccionesDecoracion}>
+
+      </span>
+    </aside>
   );
 }

@@ -134,7 +134,7 @@ const DEBUG_VIDEO = false;
 // Retraso (ms) entre que termina el video y aparece el botón "Paso 2"
 const BOTON_DELAY = 500;
 // Ruta a la que lleva el botón
-const RUTA_PASO_2 = "/competencia3";
+const RUTA_PASO_2 = "/competencia2";
 
 // Trozos que orbitan por la boca y se deshacen (borrá el array para desactivarlos)
 const TROZOS = [
@@ -851,6 +851,46 @@ function Recetario({ paso }) {
   );
 }
 
+function Instrucciones({ mezclando, bowlListo, batidorListo, videoFin }) {
+  let titulo = "¡Comencemos!";
+  let mensaje = "Hacé clic en el bowl para comenzar a preparar tu pastel.";
+
+  if (mezclando && !bowlListo) {
+    titulo = "Paso 1: Crear la mezcla";
+    mensaje = "Prepará todos los ingredientes en el bowl para obtener una mezcla deliciosa.";
+  }
+
+  if (bowlListo && !batidorListo) {
+    titulo = "¡A preparar la mezcla!";
+    mensaje = "Agregá todos los ingredientes al bowl para continuar con la preparación.";
+  }
+
+  if (batidorListo) {
+    titulo = "¡A mezclar!";
+    mensaje = "Utilizá el batidor para integrar todos los ingredientes y conseguir una mezcla homogénea.";
+  }
+
+  if (videoFin) {
+    titulo = "¡Excelente trabajo!";
+    mensaje = "¡La mezcla está lista! Hacé clic en Paso 2 para continuar con tu pastel.";
+  }
+
+  return (
+    <aside className={styles.instrucciones}>
+      <h3 className={styles.instruccionesTitulo}>
+        {titulo} 
+      </h3>
+
+      <p className={styles.instruccionesTexto}>
+        {mensaje}
+      </p>
+
+      <span className={styles.instruccionesDecoracion}>
+
+      </span>
+    </aside>
+  );
+}
 export default function CrearPastelPage() {
   const router = useRouter();
   const [mezclando, setMezclando] = useState(false);
@@ -861,7 +901,12 @@ export default function CrearPastelPage() {
 
   return (
     <main className={`${styles.game} ${mezclando ? styles.gameMezcla : ""}`}>
-      {/* Escena 1: bowl como botón */}
+<Instrucciones
+  mezclando={mezclando}
+  bowlListo={bowlListo}
+  batidorListo={batidorListo}
+  videoFin={videoFin}
+/>      {/* Escena 1: bowl como botón */}
       {!mezclando && (
         <button
           type="button"

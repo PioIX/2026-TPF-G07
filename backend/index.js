@@ -1,33 +1,22 @@
+
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
 const { Server } = require("socket.io");
 const { realizarQuery } = require("./modulo/mysql");
+const { registrarPasteles } = require("./modulo/pasteles");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // 1. Configuración de CORS
-app.use(
-  cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"],
-    credentials: true,
-  })
-);
+// origin: true acepta el origen de cualquier compu que se conecte (con credentials no se puede usar "*").
+app.use(cors());
 
-// 2. Middleware para procesar JSON (resuelve el "Cannot read properties of undefined (reading 'correo')")
+// 2. Middleware para procesar JSON
 app.use(express.json());
 
-app.get("/chats/:id_usuario", async function (req, res) {
-
-  console.log("Hola esto anda")
-
-  res.send("Hola esto anda")
-})
-
-
-
-    // 3. Middlewares de sesión
+// 3. Middlewares de sesión
 const sessionMiddleware = session({
   secret: "supersarasa",
   resave: false,
@@ -35,29 +24,40 @@ const sessionMiddleware = session({
 });
 app.use(sessionMiddleware);
 
-const server = app.listen(PORT, () => {
+// "0.0.0.0" = escucha a todas las compus de la red, no solo a esta
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor NodeJS corriendo en http://localhost:${PORT}/`);
 });
 
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
   },
+  maxHttpBufferSize: 1e7, // las tortas viajan como imagen (~1 MB); por defecto socket.io corta en 1 MB
 });
 
 io.use((socket, next) => {
   sessionMiddleware(socket.request, {}, next);
 });
 
-let contador = 0;
-
-// Salas de Petit Bakery. Cada sala va a tener un identificador, un nombre, una contraseña, el creador, los jugadores conectados y el estado de la competencia.
+// Salas de Petit Bakery. Cada sala tiene un identificador, un nombre, una contraseña,
+// el creador, los jugadores conectados y el estado de la competencia.
+// (Las tortas de cada jugador se guardan dentro de la sala: sala.pasteles, ver modulo/pasteles.js)
 const salas = new Map();
 
-function enviarSalas() {
-  const lista = Array.from(salas.values())
+function datosSala(sala) {
+  return {
+    id: sala.id,
+    nombre: sala.nombre,
+    jugadores: sala.jugadores,
+    empezada: sala.empezada,
+    creador: sala.creador,
+  };
+}
+
+function listaSalas() {
+  return Array.from(salas.values())
     .filter((sala) => !sala.empezada)
     .map((sala) => ({
       id: sala.id,
@@ -65,13 +65,17 @@ function enviarSalas() {
       jugadores: sala.jugadores.length,
       minimoJugadores: 2,
     }));
+}
 
-  io.emit("listaSalas", lista);
+function enviarSalas() {
+  io.emit("listaSalas", listaSalas());
 }
 
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
-  const req = socket.request;
+
+  // Tortas de los jugadores (decorarPastel y finCompetencia)
+  registrarPasteles(io, socket, salas);
 
   socket.on("pedirEstadoSala", ({ id }) => {
     const sala = salas.get(id);
@@ -83,13 +87,7 @@ io.on("connection", (socket) => {
       );
     }
 
-    socket.emit("actualizarSala", {
-      id: sala.id,
-      nombre: sala.nombre,
-      creador: sala.creador,
-      jugadores: sala.jugadores,
-      empezada: sala.empezada,
-    });
+    socket.emit("actualizarSala", datosSala(sala));
   });
 
   // CREAR SALA
@@ -131,18 +129,8 @@ io.on("connection", (socket) => {
 
     console.log("Sala creada:", sala.nombre);
 
-    socket.emit("salaCreada", {
-      id: sala.id,
-      nombre: sala.nombre,
-    });
-
-    io.to(id).emit("actualizarSala", {
-      id: sala.id,
-      nombre: sala.nombre,
-      jugadores: sala.jugadores,
-      empezada: sala.empezada,
-      creador: sala.creador,
-    });
+    socket.emit("salaCreada", { id: sala.id, nombre: sala.nombre });
+    io.to(id).emit("actualizarSala", datosSala(sala));
 
     enviarSalas();
   });
@@ -169,41 +157,19 @@ io.on("connection", (socket) => {
 
     jugador = jugador?.trim() || "Pastelero";
 
-    sala.jugadores.push({
-      id: socket.id,
-      nombre: jugador,
-    });
+    sala.jugadores.push({ id: socket.id, nombre: jugador });
 
     socket.join(sala.id);
 
-    io.to(sala.id).emit("actualizarSala", {
-      id: sala.id,
-      nombre: sala.nombre,
-      jugadores: sala.jugadores,
-      empezada: sala.empezada,
-      creador: sala.creador,
-    });
-
-    socket.emit("salaUnida", {
-      id: sala.id,
-      nombre: sala.nombre,
-    });
+    io.to(sala.id).emit("actualizarSala", datosSala(sala));
+    socket.emit("salaUnida", { id: sala.id, nombre: sala.nombre });
 
     enviarSalas();
   });
 
   // PEDIR EL LISTADO DE SALAS
   socket.on("pedirSalas", () => {
-    const lista = Array.from(salas.values())
-      .filter((sala) => !sala.empezada)
-      .map((sala) => ({
-        id: sala.id,
-        nombre: sala.nombre,
-        jugadores: sala.jugadores.length,
-        minimoJugadores: 2,
-      }));
-
-    socket.emit("listaSalas", lista);
+    socket.emit("listaSalas", listaSalas());
   });
 
   // EMPEZAR LA COMPETENCIA
@@ -232,53 +198,6 @@ io.on("connection", (socket) => {
     enviarSalas();
   });
 
-  socket.on("joinRoom", (data) => {
-    if (req.session.room != undefined && req.session.room.length > 0) {
-      socket.leave(req.session.room);
-    }
-
-    req.session.room = data.room;
-    socket.join(req.session.room);
-
-    console.log("Usuario entró al chat:", req.session.room);
-  });
-
-  socket.on("pingAll", (data) => {
-    console.log("PING ALL:", data);
-    io.emit("pingAll", { event: "Ping to all", message: data });
-  });
-
-  // PUNTO C Y D
-  socket.on("sendMessage", async (data) => {
-    try {
-      const idChat = req.session.room || data.id_chat;
-      const idUsuario = req.session.user
-        ? req.session.user.id_usuario
-        : data.id_usuario;
-      const textoMensaje = data.message;
-
-      if (idChat && idUsuario && textoMensaje) {
-        await realizarQuery(
-          "INSERT INTO Mensajes(id_chat,id_usuario,texto,hora_enviada) VALUES(?,?,?, NOW())",
-          [idChat, idUsuario, textoMensaje]
-        );
-      }
-
-      io.to(idChat).emit("newMessage", {
-        room: idChat,
-        message: textoMensaje,
-        id_usuario: idUsuario,
-      });
-    } catch (error) {
-      console.error("Error al persistir mensaje por socket:", error);
-    }
-  });
-
-  socket.on("eventoPersonalizado", () => {
-    contador++;
-    socket.emit("respuestaPersonalizada", { contador });
-  });
-
   socket.on("disconnect", () => {
     console.log("Disconnect:", socket.id);
 
@@ -301,13 +220,7 @@ io.on("connection", (socket) => {
         continue;
       }
 
-      io.to(id).emit("actualizarSala", {
-        id: sala.id,
-        nombre: sala.nombre,
-        jugadores: sala.jugadores,
-        empezada: sala.empezada,
-        creador: sala.creador,
-      });
+      io.to(id).emit("actualizarSala", datosSala(sala));
     }
 
     enviarSalas();
@@ -317,6 +230,13 @@ io.on("connection", (socket) => {
 ////////////////////
 // REGISTRO
 ////////////////////
+app.get("/", (req, res) => {
+  res.status(200).json({
+    mensaje: "¡Backend funcionando correctamente!",
+    estado: "OK",
+  });
+  console.log("holaaa")
+});
 
 app.post("/registro", async function (req, res) {
   try {
@@ -368,7 +288,7 @@ app.post("/login", async function (req, res) {
 
       req.session.user = {
         id: idDetectado,
-        id_usuario: idDetectado, // para que el socket lo encuentre con este nombre
+        id_usuario: idDetectado,
         nombre: respuesta[0].nombre,
         mail: respuesta[0].mail,
       };
@@ -393,18 +313,20 @@ app.post("/login", async function (req, res) {
 //FUNCIONES ADMIN//
 ///////////////////
 
+// AGREGAR USUARIO
+// (Antes había dos rutas iguales y solo corría la primera, que ignoraba "es_admin".
+//  Ahora es una sola y acepta "es_admin" o "user_administrador".)
 app.post("/admin/agregar-usuario", async function (req, res) {
   try {
-    const { nombre, mail, contraseña, user_administrador } = req.body;
+    const { nombre, mail, contraseña, es_admin, user_administrador } = req.body;
+    const esAdmin = es_admin ?? user_administrador;
 
-    // 1. Validar que no falten datos obligatorios
     if (!nombre || !mail || !contraseña) {
       return res
         .status(400)
         .send({ ok: false, message: "Faltan campos requeridos" });
     }
 
-    // 2. Verificar si el correo ya existe
     let existe = await realizarQuery(
       "SELECT * FROM UsuariosBakery WHERE mail = ?",
       [mail]
@@ -414,10 +336,9 @@ app.post("/admin/agregar-usuario", async function (req, res) {
       return res.send({ ok: false, message: "El mail ya está registrado" });
     }
 
-    // 3. Insertar nuevo usuario (es_admin será 1 si es verdadero, o 0 si es falso)
     let resultado = await realizarQuery(
       "INSERT INTO UsuariosBakery (nombre, mail, contraseña, user_administrador) VALUES (?, ?, ?, ?)",
-      [nombre, mail, contraseña, user_administrador ? 1 : 0]
+      [nombre, mail, contraseña, esAdmin ? 1 : 0]
     );
 
     res.send({
@@ -444,7 +365,9 @@ app.get("/admin/usuarios", async function (req, res) {
     res.send({ ok: true, usuarios: usuarios || [] });
   } catch (error) {
     console.error("Error al obtener usuarios:", error);
-    res.status(500).send({ ok: false, message: "Error al obtener la lista de usuarios" });
+    res
+      .status(500)
+      .send({ ok: false, message: "Error al obtener la lista de usuarios" });
   }
 });
 
@@ -454,17 +377,23 @@ app.delete("/admin/eliminar-usuario", async function (req, res) {
     const { id } = req.body;
 
     if (!id) {
-      return res.status(400).send({ ok: false, message: "Falta el ID del usuario" });
+      return res
+        .status(400)
+        .send({ ok: false, message: "Falta el ID del usuario" });
     }
 
+    // con "?" en vez de ${id}, para evitar inyección SQL
     let resultado = await realizarQuery(
-      `DELETE FROM UsuariosBakery WHERE id = ${id}`
+      "DELETE FROM UsuariosBakery WHERE id = ?",
+      [id]
     );
 
     if (resultado.affectedRows > 0) {
       res.send({ ok: true, message: "Usuario eliminado correctamente" });
     } else {
-      res.status(404).send({ ok: false, message: "El usuario no fue encontrado" });
+      res
+        .status(404)
+        .send({ ok: false, message: "El usuario no fue encontrado" });
     }
   } catch (error) {
     console.error("Error en /admin/eliminar-usuario:", error);
@@ -473,237 +402,5 @@ app.delete("/admin/eliminar-usuario", async function (req, res) {
       message: "Error en el servidor al eliminar usuario",
       error: error.message,
     });
-  }
-});
-
-// AGREGAR USUARIO (Corregido para coincidir con el campo es_admin del frontend)
-app.post("/admin/agregar-usuario", async function (req, res) {
-  try {
-    const { nombre, mail, contraseña, es_admin } = req.body;
-
-    if (!nombre || !mail || !contraseña) {
-      return res
-        .status(400)
-        .send({ ok: false, message: "Faltan campos requeridos" });
-    }
-
-    let existe = await realizarQuery(
-      "SELECT * FROM UsuariosBakery WHERE mail = ?",
-      [mail]
-    );
-
-    if (existe && existe.length > 0) {
-      return res.send({ ok: false, message: "El mail ya está registrado" });
-    }
-
-    let resultado = await realizarQuery(
-      "INSERT INTO UsuariosBakery (nombre, mail, contraseña, user_administrador) VALUES (?, ?, ?, ?)",
-      [nombre, mail, contraseña, es_admin ? 1 : 0]
-    );
-
-    res.send({
-      ok: true,
-      message: "Usuario creado exitosamente",
-      id_usuario: resultado.insertId,
-    });
-  } catch (error) {
-    console.error("Error en /admin/agregar-usuario:", error);
-    res.status(500).send({
-      ok: false,
-      message: "Error en el servidor al agregar usuario",
-      error: error.message,
-    });
-  }
-});
-
-
-
-
-// LISTADO DE CHATS:
-app.get("/chats/:id_usuario", async function (req, res) {
-  try {
-    const { id_usuario } = req.params;
-
-    const chats = await realizarQuery(
-      `
-      SELECT 
-        c.id_chat,
-        c.nom_grupo,
-
-        -- 1. Buscamos la foto del contacto o la foto del grupo
-        COALESCE(
-          NULLIF(uec.foto_grupo, ''),
-          u_otro.foto
-        ) AS foto_contacto,
-
-        -- 2. Traemos explícitamente el nombre del OTRO usuario
-        u_otro.nombre AS nombre_contacto
-
-      FROM UsuarioEnChats uec
-
-      JOIN Chats c 
-        ON uec.id_chat = c.id_chat
-
-      -- Obtenemos directamente los datos del OTRO usuario registrado en el chat
-      LEFT JOIN UsuariosWhatsapp u_otro
-        ON u_otro.id_usuario = (
-          SELECT uec_sub.id_usuario 
-          FROM UsuarioEnChats uec_sub
-          WHERE uec_sub.id_chat = c.id_chat 
-            AND uec_sub.id_usuario != ?
-          LIMIT 1
-        )
-
-      WHERE uec.id_usuario = ?
-      `,
-      [id_usuario, id_usuario]
-    );
-
-    res.send({
-      ok: true,
-      chats,
-    });
-  } catch (error) {
-    res.status(500).send({
-      message: "Error al listar chats",
-      error: error.message,
-    });
-  }
-});
-
-// CREACION DE CHAT INDIVIDUAL:
-app.post("/chat/individual", async function (req, res) {
-  try {
-    const { id_usuario_creador, correo_destinatario } = req.body;
-
-    // 1. Buscar al destinatario por correo
-    const destinatarios = await realizarQuery(
-      `SELECT id_usuario FROM UsuariosWhatsapp WHERE correo = ?`,
-      [correo_destinatario]
-    );
-
-    if (destinatarios.length === 0) {
-      return res.status(404).send({
-        message: "El usuario destinatario no existe",
-      });
-    }
-
-    const id_destinatario = destinatarios[0].id_usuario;
-
-    if (Number(id_usuario_creador) === Number(id_destinatario)) {
-      return res.status(400).send({
-        message: "No puedes crear un chat individual contigo mismo",
-      });
-    }
-
-    const resultadoChat = await realizarQuery(
-      `INSERT INTO Chats (nom_grupo) VALUES (NULL)`
-    );
-    const id_chat = resultadoChat.insertId;
-
-    await realizarQuery(
-      `INSERT INTO UsuarioEnChats (id_chat, id_usuario, foto_grupo) VALUES (?, ?, ?)`,
-      [id_chat, id_usuario_creador, ""]
-    );
-
-    //Insertar al DESTINATARIO en UsuarioEnChats
-    await realizarQuery(
-      `INSERT INTO UsuarioEnChats (id_chat, id_usuario, foto_grupo) VALUES (?, ?, ?)`,
-      [id_chat, id_destinatario, ""]
-    );
-
-    res.send({
-      ok: true,
-      message: "Chat individual creado con éxito",
-      id_chat,
-    });
-  } catch (error) {
-    res.status(500).send({
-      message: "Error al crear chat individual",
-      error: error.message,
-    });
-  }
-});
-
-// CREACION DE CHAT DE GRUPO:
-app.post("/chat/grupal", async function (req, res) {
-  try {
-    const { nom_grupo, id_usuario_creador, correos, foto_grupo } = req.body;
-    if (!nom_grupo || !id_usuario_creador) {
-      return res.status(400).send({ message: "Faltan datos del grupo" });
-    }
-
-    const usuarios = [];
-    for (const correo of correos || []) {
-      const usuario = await realizarQuery(
-        `SELECT id_usuario FROM UsuariosWhatsapp WHERE correo = ?`,
-        [correo]
-      );
-
-      if (usuario.length === 0) {
-        return res
-          .status(404)
-          .send({ message: `El usuario ${correo} no existe` });
-      }
-
-      // Evitamos agregar al creador dos veces si su correo vino en el array
-      if (usuario[0].id_usuario !== Number(id_usuario_creador)) {
-        usuarios.push(usuario[0].id_usuario);
-      }
-    }
-
-    const resultadoChat = await realizarQuery(
-      `INSERT INTO Chats (nom_grupo) VALUES (?)`,
-      [nom_grupo]
-    );
-    const id_chat = resultadoChat.insertId;
-
-    // Insertar al creador del grupo
-    await realizarQuery(
-      `INSERT INTO UsuarioEnChats (id_chat, id_usuario, foto_grupo) VALUES (?, ?, ?)`,
-      [id_chat, id_usuario_creador, foto_grupo || ""]
-    );
-
-    // Insertar al resto de los integrantes (sin duplicar al creador)
-    for (const idUsuario of usuarios) {
-      await realizarQuery(
-        `INSERT INTO UsuarioEnChats (id_chat, id_usuario, foto_grupo) VALUES (?, ?, ?)`,
-        [id_chat, idUsuario, ""]
-      );
-    }
-
-    res.send({
-      ok: true,
-      message: "Chat grupal creado con éxito",
-      id_chat,
-    });
-  } catch (error) {
-    res.status(500).send({
-      message: "Error al crear chat grupal",
-      error: error.message,
-    });
-  }
-});
-
-// HISTORIAL:
-app.get("/mensajes/:id_chat", async function (req, res) {
-  try {
-    const { id_chat } = req.params;
-    const mensajes = await realizarQuery(
-      `
-        SELECT m.id_mensaje, m.id_chat, m.id_usuario, u.nombre AS remitente, m.texto, m.hora_enviada
-        FROM Mensajes m
-        JOIN UsuariosWhatsapp u ON m.id_usuario = u.id_usuario
-        WHERE m.id_chat = ?
-        ORDER BY m.id_mensaje ASC
-    `,
-      [id_chat]
-    );
-
-    res.send({ ok: true, mensajes });
-  } catch (error) {
-    res
-      .status(500)
-      .send({ message: "Error al obtener historial", error: error.message });
   }
 });
