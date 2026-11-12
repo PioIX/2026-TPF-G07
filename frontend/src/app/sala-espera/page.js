@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
 import Button from "@/components/Button";
 import Buttonstyles from "@/components/Button.module.css";
+import { guardarPartida } from "@/lib/partida"; // NUEVO: recuerda la partida para las pages siguientes
 import styles from "./sala-espera.module.css";
 
 export default function SalaEsperaPage() {
@@ -33,7 +34,14 @@ export default function SalaEsperaPage() {
       setMensaje(error);
     }
 
-    function iniciarCompetencia() {
+    // CAMBIO: el servidor ahora manda idPartida e idTorta (creados en PartidasBakery).
+    // Los guardamos (junto con la hora de inicio) y recién después pasamos a la competencia.
+    function iniciarCompetencia(datos) {
+      guardarPartida({
+        idPartida: datos?.idPartida,
+        idTorta: datos?.idTorta,
+        idSala,
+      });
       router.push(`/competencia?id=${encodeURIComponent(idSala)}`);
     }
 
@@ -140,4 +148,4 @@ export default function SalaEsperaPage() {
       </section>
     </main>
   );
-}
+};

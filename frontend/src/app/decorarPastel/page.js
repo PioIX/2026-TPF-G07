@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import styles from "./decorarPastel.module.css";
 import Button from "@/components/Button"; // ajustá la ruta a donde esté tu componente
 import { guardarPastel } from "../finCompetencia/PastelesFinales";
+import { guardarResultado } from "@/lib/partida"; // NUEVO: guarda el tiempo total en la base al terminar
 
 // Resolución lógica del canvas = tamaño de mesada.png
 const W = 1219;
@@ -941,7 +942,13 @@ export default function DecorarPastelPage() {
       <EscenaDecorar
         onPaso={setPaso}
         onProgreso={setProgreso}
-        onFin={() => setFin(true)}
+        onFin={() => {
+          setFin(true);
+          // NUEVO: guarda el resultado en la base (UsuariosPorPartida.tiempo_total).
+          // Si terminaron todos los jugadores, el servidor cierra la partida y calcula el ganador.
+          // Si no hay partida en curso o falla el servidor, no pasa nada: el juego sigue igual.
+          guardarResultado();
+        }}
         terminarRef={terminarRef}
       />
 

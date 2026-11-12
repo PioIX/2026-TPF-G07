@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./crearPastel.module.css";
 import Button from "@/components/Button"; // ajustá la ruta a donde esté tu componente
+import { leerPartida } from "@/lib/partida"; // NUEVO: lee qué torta se está haciendo en la partida actual
 
 // Resolución lógica del canvas = tamaño de mesada.png
 const W = 1885;
@@ -32,14 +33,15 @@ const BOWL_MANTEL = { x: 50, y: 52, w: 26 };
 const TOOL_W = 9;
 
 /*
- * RECETA: el orden de este array ES el orden del juego y del recetario.
+ * RECETAS: tus arrays de siempre, ahora una por torta.
+ * El orden de este array ES el orden del juego y del recetario.
  *  - nombre : lo que se lee en el recetario
  *  - objeto : id (de OBJETOS) en el que hay que hacer clic
  *  - tool   : imagen que aparece para arrastrar (/objetos/<tool>.png).
  *  - bowl   : imagen del bowl DESPUÉS de echar este ingrediente (/objetos/<bowl>.png)
  *  - toolW  : (opcional) ancho de lo que se arrastra, en % del ancho
  */
-const RECETA = [
+const RECETA_VAINILLA = [
   { id: "azucar",   nombre: "Azúcar",              objeto: "azucar",       tool: "cucharaAzucar",   bowl: "bowlAzucar" },
   { id: "manteca",  nombre: "Manteca",             objeto: "manteca",      tool: "bloqueManteca",   bowl: "bowlAzucarManteca", toolW: 8, rotar: false },
   { id: "harina",   nombre: "Harina",              objeto: "harina",       tool: "cucharaHarina",   bowl: "bowlAzucarMantecaHarina" },
@@ -48,6 +50,20 @@ const RECETA = [
   { id: "polvo",    nombre: "Polvo para hornear",  objeto: "polvoHornear", tool: "cucharaPHornear", bowl: "bowlIngredientesPHornear" },
   { id: "vainilla", nombre: "Esencia de vainilla", objeto: "vainilla",     tool: "vainilla", bowl: "bowlIngredientesVainilla", toolW: 5.5, toolRoto: "vainillaArrastrable", cambioT: 0.05 },
 ];
+
+// Para sumar la torta de chocolate: armá su array igual que el de arriba (con sus imágenes)
+// y agregalo en RECETAS con su id de la tabla Tortas (2).
+// const RECETA_CHOCOLATE = [ ... ];
+
+// Recetas por id de torta (Tortas.id_torta). La partida guarda qué torta se juega.
+const RECETAS = {
+  1: RECETA_VAINILLA, // vainilla
+  // 2: RECETA_CHOCOLATE,
+};
+
+// Devuelve la receta de la torta; si no existe (o no hay partida), usa la de vainilla.
+// Así el juego nunca se rompe.
+const recetaDe = (idTorta) => RECETAS[idTorta] ?? RECETA_VAINILLA;
 
 /*
  * BATIDOR: aparece sobre la mesada cuando se completa la receta.
@@ -134,7 +150,7 @@ const DEBUG_VIDEO = false;
 // Retraso (ms) entre que termina el video y aparece el botón "Paso 2"
 const BOTON_DELAY = 500;
 // Ruta a la que lleva el botón
-const RUTA_PASO_2 = "/competencia2";
+const RUTA_PASO_2 = "/competencia3";
 
 // Trozos que orbitan por la boca y se deshacen (borrá el array para desactivarlos)
 const TROZOS = [
@@ -144,8 +160,9 @@ const TROZOS = [
   { color: "#f2b632", r: 0.65, fase: 5.4, vel: 1.2, tam: 0.06 }, // yema
 ];
 
-// Todas las imágenes que usa el canvas
-const SRC = {
+// Imágenes fijas que usa el canvas (las de cada paso de la receta se suman después,
+// en srcDeReceta, porque dependen de la torta que se esté haciendo)
+const SRC_BASE = {
   fondo: "/mesada.png",
   bowlMantel: "/objetos/bowlMantel.png",
   batidor: "/objetos/batidor.png",
@@ -153,10 +170,16 @@ const SRC = {
   bowlMasa: "/objetos/bowlMasa.png",
   ...Object.fromEntries(OBJETOS.map((o) => [o.id, o.src])),
 };
-for (const r of RECETA) {
-  SRC[r.tool] = `/objetos/${r.tool}.png`;
-  SRC[r.bowl] = `/objetos/${r.bowl}.png`;
-  if (r.toolRoto) SRC[r.toolRoto] = `/objetos/${r.toolRoto}.png`;
+
+// Lista completa de imágenes a cargar: las fijas + las de cada paso de la receta
+function srcDeReceta(receta) {
+  const src = { ...SRC_BASE };
+  for (const r of receta) {
+    src[r.tool] = `/objetos/${r.tool}.png`;
+    if (r.bowl) src[r.bowl] = `/objetos/${r.bowl}.png`;
+    if (r.toolRoto) src[r.toolRoto] = `/objetos/${r.toolRoto}.png`;
+  }
+  return src;
 }
 
 const clamp = (v) => Math.min(Math.max(v, 0), 1);
@@ -246,7 +269,8 @@ function calzarVideo(imgBowl) {
   return { vt, bowlFin, bb };
 }
 
-function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
+// `receta` = pasos de la torta (ver RECETAS). Se lee una sola vez, al montar la escena.
+function EscenaMezcla({ receta, onPaso, onBowl, onBatidor, onVideoFin }) {
   const canvasRef = useRef(null);
   const onPasoRef = useRef(onPaso);
   const onBowlRef = useRef(onBowl);
@@ -305,11 +329,20 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
     const dentro = (r, mx, my) =>
       r && Math.abs(mx - r.x) < r.w / 2 && Math.abs(my - r.y) < r.h / 2;
 
+    // Imagen del bowl con TODOS los ingredientes (la última que exista en la receta).
+    // Es la base del efecto de mezcla y de la que se calza el video.
+    const bowlConIngredientes = () => {
+      for (let i = receta.length - 1; i >= 0; i--) {
+        if (receta[i].bowl && imgs[receta[i].bowl]) return imgs[receta[i].bowl];
+      }
+      return imgs.bowlMantel;
+    };
+
     // Imagen del bowl según el paso actual (si falta alguna, usa la anterior)
     const bowlImg = () => {
       if (s.batido && imgs.bowlMasa) return imgs.bowlMasa;
       for (let i = s.paso - 1; i >= 0; i--) {
-        if (imgs[RECETA[i].bowl]) return imgs[RECETA[i].bowl];
+        if (receta[i].bowl && imgs[receta[i].bowl]) return imgs[receta[i].bowl];
       }
       return imgs.bowlMantel;
     };
@@ -362,7 +395,7 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
       const { ang, prog } = s.bate;
       const k = boca.ry / boca.rx;
       const N = 10;
-      const imgIng = imgs[RECETA[RECETA.length - 1].bowl]; // bowl con todos los ingredientes
+      const imgIng = bowlConIngredientes(); // bowl con todos los ingredientes
       if (!imgIng) return;
 
       // (1) remolino por anillos: el centro gira más que el borde
@@ -509,7 +542,7 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
         if (t >= 0.7 && !c.aplicado) {
           c.aplicado = true;
           s.paso++; // el bowl cambia a la imagen con este ingrediente
-          if (s.paso >= RECETA.length) s.finalT = performance.now();
+          if (s.paso >= receta.length) s.finalT = performance.now();
         }
         if (t >= 1) s.cuchara = null;
       } else if (c.modo === "bate") {
@@ -734,8 +767,8 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
       }
       if (c) return; // ya hay un ingrediente en mano
 
-      // 4) clic en el ingrediente que toca: aparece lo que se arrastra
-      const step = RECETA[s.paso];
+      // 4) clic en el ingrediente que toca (según la receta de la torta): aparece lo que se arrastra
+      const step = receta[s.paso];
       if (step && o.id === step.objeto) {
         const home = homeDe(step);
         s.cuchara = { x: home.x, y: home.y, modo: "aparece", t0: performance.now(), step, aplicado: false };
@@ -775,13 +808,14 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
 
     // ---------- arranque ----------
     (async () => {
+      // carga las imágenes fijas + las de cada paso de la receta
       await Promise.all(
-        Object.entries(SRC).map(async ([k, v]) => {
+        Object.entries(srcDeReceta(receta)).map(async ([k, v]) => {
           imgs[k] = await cargar(v);
         })
       );
       // el video se mueve y escala para que su bowl caiga sobre el bowl del juego
-      const imgBowlFin = imgs.bowlMasa || imgs[RECETA[RECETA.length - 1].bowl] || imgs.bowlMantel;
+      const imgBowlFin = imgs.bowlMasa || bowlConIngredientes() || imgs.bowlMantel;
       const cal = calzarVideo(imgBowlFin);
       s.vt = cal.vt;
       s.bowlFin = cal.bowlFin;
@@ -812,19 +846,20 @@ function EscenaMezcla({ onPaso, onBowl, onBatidor, onVideoFin }) {
 // ---------- Recetario (popup) ----------
 // Aparece arriba a la derecha (zona de la repisa) cuando el bowl llega al mantel.
 // Cuando la receta se completa, en su lugar aparece el batidor (dentro del canvas).
-function Recetario({ paso }) {
-  const completa = paso >= RECETA.length;
+// Los pasos vienen de la receta de la torta (prop `receta`).
+function Recetario({ paso, receta }) {
+  const completa = paso >= receta.length;
 
   return (
     <aside className={styles.receta} aria-label="Receta del pastel">
       <h2 className={styles.recetaTitulo}>
         Ingredientes
         <span className={styles.recetaCuenta}>
-          {Math.min(paso, RECETA.length)}/{RECETA.length}
+          {Math.min(paso, receta.length)}/{receta.length}
         </span>
       </h2>
       <ol className={styles.recetaLista}>
-        {RECETA.map((r, i) => {
+        {receta.map((r, i) => {
           const hecho = i < paso;
           const actual = i === paso;
           return (
@@ -851,46 +886,6 @@ function Recetario({ paso }) {
   );
 }
 
-function Instrucciones({ mezclando, bowlListo, batidorListo, videoFin }) {
-  let titulo = "¡Comencemos!";
-  let mensaje = "Hacé clic en el bowl para comenzar a preparar tu pastel.";
-
-  if (mezclando && !bowlListo) {
-    titulo = "Paso 1: Crear la mezcla";
-    mensaje = "Prepará todos los ingredientes en el bowl para obtener una mezcla deliciosa.";
-  }
-
-  if (bowlListo && !batidorListo) {
-    titulo = "¡A preparar la mezcla!";
-    mensaje = "Agregá todos los ingredientes al bowl para continuar con la preparación.";
-  }
-
-  if (batidorListo) {
-    titulo = "¡A mezclar!";
-    mensaje = "Utilizá el batidor para integrar todos los ingredientes y conseguir una mezcla homogénea.";
-  }
-
-  if (videoFin) {
-    titulo = "¡Excelente trabajo!";
-    mensaje = "¡La mezcla está lista! Hacé clic en Paso 2 para continuar con tu pastel.";
-  }
-
-  return (
-    <aside className={styles.instrucciones}>
-      <h3 className={styles.instruccionesTitulo}>
-        {titulo} 
-      </h3>
-
-      <p className={styles.instruccionesTexto}>
-        {mensaje}
-      </p>
-
-      <span className={styles.instruccionesDecoracion}>
-
-      </span>
-    </aside>
-  );
-}
 export default function CrearPastelPage() {
   const router = useRouter();
   const [mezclando, setMezclando] = useState(false);
@@ -899,14 +894,16 @@ export default function CrearPastelPage() {
   const [paso, setPaso] = useState(0);
   const [videoFin, setVideoFin] = useState(false);
 
+  // NUEVO: receta de la torta de la partida. Arranca con la de vainilla y, al entrar,
+  // se cambia por la de la torta guardada en la partida (si no hay partida, queda la de vainilla).
+  const [receta, setReceta] = useState(RECETA_VAINILLA);
+  useEffect(() => {
+    setReceta(recetaDe(leerPartida()?.idTorta));
+  }, []);
+
   return (
     <main className={`${styles.game} ${mezclando ? styles.gameMezcla : ""}`}>
-<Instrucciones
-  mezclando={mezclando}
-  bowlListo={bowlListo}
-  batidorListo={batidorListo}
-  videoFin={videoFin}
-/>      {/* Escena 1: bowl como botón */}
+      {/* Escena 1: bowl como botón */}
       {!mezclando && (
         <button
           type="button"
@@ -922,12 +919,13 @@ export default function CrearPastelPage() {
       {mezclando && (
         <>
           <EscenaMezcla
+            receta={receta}
             onPaso={setPaso}
             onBowl={() => setBowlListo(true)}
             onBatidor={() => setBatidorListo(true)}
             onVideoFin={() => setTimeout(() => setVideoFin(true), BOTON_DELAY)}
           />
-          {bowlListo && !batidorListo && <Recetario paso={paso} />}
+          {bowlListo && !batidorListo && <Recetario paso={paso} receta={receta} />}
 
           {/* Cuando termina el video: botón abajo a la derecha hacia el paso 2 */}
           {videoFin && (
@@ -942,4 +940,4 @@ export default function CrearPastelPage() {
       )}
     </main>
   );
-}
+};

@@ -33,7 +33,7 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
-  },
+  },  
   maxHttpBufferSize: 1e7, // las tortas viajan como imagen (~1 MB); por defecto socket.io corta en 1 MB
 });
 
