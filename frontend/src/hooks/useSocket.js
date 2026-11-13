@@ -19,12 +19,12 @@ function urlPorDefecto() {
 // así el jugador tiene el mismo socket.id que en la sala.
 export function obtenerSocket(serverUrl = urlPorDefecto(), options = {}) {
   if (!socketCompartido) {
-    socketCompartido = io(serverUrl, { ...options, withCredentials: true });
+    socketCompartido = io(serverUrl, { ...options, withCredentials: false });
   }
   return socketCompartido;
 }
 
-const useSocket = (options = { withCredentials: true }, serverUrl = urlPorDefecto()) => {
+const useSocket = (options = { withCredentials: false }, serverUrl = urlPorDefecto()) => {
   const [socket, setSocket] = useState(socketCompartido);
   const [isConnected, setIsConnected] = useState(socketCompartido?.connected || false);
 
