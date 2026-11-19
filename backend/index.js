@@ -19,7 +19,10 @@ const PORT = process.env.PORT || 4000;
 
 // 1. Configuración de CORS
 // origin: true acepta el origen de cualquier compu que se conecte (con credentials no se puede usar "*").
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin: "*",
+  credentials: false
+}));
 
 // 2. Middleware para procesar JSON
 app.use(express.json());
@@ -42,8 +45,9 @@ const io = new Server(server, {
     origin: true, // acepta el origen de quien se conecta (con credentials no se puede usar "*")
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: false
   },
-  maxHttpBufferSize: 1e7, // las tortas viajan como imagen (~1 MB); por defecto socket.io corta en 1 MB
+  maxHttpBufferSize: 1e7
 });
 
 io.use((socket, next) => {
