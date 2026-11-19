@@ -42,8 +42,7 @@ const server = app.listen(PORT, "0.0.0.0", () => {
 
 const io = new Server(server, {
   cors: {
-    origin: true, // acepta el origen de quien se conecta (con credentials no se puede usar "*")
-    credentials: true,
+    origin: "*", // acepta el origen de quien se conecta (con credentials no se puede usar "*")
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: false
   },
