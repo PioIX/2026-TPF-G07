@@ -5,13 +5,21 @@ const session = require("express-session");
 const { Server } = require("socket.io");
 const { realizarQuery } = require("./modulo/mysql");
 const { registrarPasteles } = require("./modulo/pasteles");
+const {
+  registrarPartidas,
+  crearPartida,
+  elegirTorta,
+  esTortaValida,
+  cerrarPartida,
+  intentarCerrar,
+} = require("./modulo/partidas");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // 1. Configuración de CORS
 // origin: true acepta el origen de cualquier compu que se conecte (con credentials no se puede usar "*").
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 
 // 2. Middleware para procesar JSON
 app.use(express.json());
@@ -31,9 +39,10 @@ const server = app.listen(PORT, "0.0.0.0", () => {
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: true, // acepta el origen de quien se conecta (con credentials no se puede usar "*")
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
-  },  
+  },
   maxHttpBufferSize: 1e7, // las tortas viajan como imagen (~1 MB); por defecto socket.io corta en 1 MB
 });
 
@@ -44,6 +53,8 @@ io.use((socket, next) => {
 // Salas de Petit Bakery. Cada sala tiene un identificador, un nombre, una contraseña,
 // el creador, los jugadores conectados y el estado de la competencia.
 // (Las tortas de cada jugador se guardan dentro de la sala: sala.pasteles, ver modulo/pasteles.js)
+// Cuando empieza la competencia la sala suma: idTorta, idPartida, inicioMs, terminaron, cerrada
+// (ver modulo/partidas.js)
 const salas = new Map();
 
 function datosSala(sala) {
@@ -77,6 +88,9 @@ io.on("connection", (socket) => {
   // Tortas de los jugadores (decorarPastel y finCompetencia)
   registrarPasteles(io, socket, salas);
 
+  // Partidas y resultados guardados en MySQL (guardarResultado)
+  registrarPartidas(io, socket, salas);
+
   socket.on("pedirEstadoSala", ({ id }) => {
     const sala = salas.get(id);
 
@@ -91,7 +105,7 @@ io.on("connection", (socket) => {
   });
 
   // CREAR SALA
-  socket.on("crearSala", ({ nombre, contrasena, jugador }) => {
+  socket.on("crearSala", ({ nombre, contrasena, jugador, idUsuario, idTorta }) => {
     nombre = nombre?.trim();
     jugador = jugador?.trim() || "Pastelero";
 
@@ -120,8 +134,11 @@ io.on("connection", (socket) => {
       nombre,
       contrasena,
       creador: socket.id,
-      jugadores: [{ id: socket.id, nombre: jugador }],
+      jugadores: [
+        { id: socket.id, nombre: jugador, idUsuario: Number(idUsuario) || null },
+      ],
       empezada: false,
+      idTorta: esTortaValida(idTorta) ? Number(idTorta) : 1, // torta elegida al crear la sala
     };
 
     salas.set(id, sala);
@@ -136,7 +153,7 @@ io.on("connection", (socket) => {
   });
 
   // UNIRSE A UNA SALA EXISTENTE
-  socket.on("unirseSala", ({ id, contrasena, jugador }) => {
+  socket.on("unirseSala", ({ id, contrasena, jugador, idUsuario }) => {
     const sala = salas.get(id?.trim().toLowerCase());
 
     if (!sala) {
@@ -157,7 +174,11 @@ io.on("connection", (socket) => {
 
     jugador = jugador?.trim() || "Pastelero";
 
-    sala.jugadores.push({ id: socket.id, nombre: jugador });
+    sala.jugadores.push({
+      id: socket.id,
+      nombre: jugador,
+      idUsuario: Number(idUsuario) || null,
+    });
 
     socket.join(sala.id);
 
@@ -173,12 +194,14 @@ io.on("connection", (socket) => {
   });
 
   // EMPEZAR LA COMPETENCIA
-  socket.on("empezarCompetencia", ({ id }) => {
+  socket.on("empezarCompetencia", async ({ id }) => {
     const sala = salas.get(id);
 
     if (!sala) {
       return socket.emit("errorSala", "La sala no existe.");
     }
+
+    if (sala.empezada) return; // evita doble clic
 
     if (sala.creador !== socket.id) {
       return socket.emit("errorSala", "Solo quien creó la sala puede empezar.");
@@ -189,10 +212,24 @@ io.on("connection", (socket) => {
     }
 
     sala.empezada = true;
+    sala.idTorta = esTortaValida(sala.idTorta) ? sala.idTorta : elegirTorta();
+    sala.inicioMs = Date.now();
+    sala.terminaron = new Set();
+    sala.cerrada = false;
+    sala.idPartida = null;
+
+    try {
+      sala.idPartida = await crearPartida(sala, sala.idTorta);
+    } catch (err) {
+      // si falla la base, el juego sigue igual (solo no se guarda nada)
+      console.error("No se pudo crear la partida:", err);
+    }
 
     io.to(sala.id).emit("competenciaIniciada", {
       id: sala.id,
       nombre: sala.nombre,
+      idPartida: sala.idPartida,
+      idTorta: sala.idTorta,
     });
 
     enviarSalas();
@@ -216,10 +253,13 @@ io.on("connection", (socket) => {
       if (sala.creador === socket.id) {
         io.to(id).emit("errorSala", "El creador salió. La sala se cerró.");
 
+        cerrarPartida(io, sala); // si había una partida en curso, la cierra con lo que haya
+
         salas.delete(id);
         continue;
       }
 
+      intentarCerrar(io, sala); // si el que se fue era el único que faltaba terminar
       io.to(id).emit("actualizarSala", datosSala(sala));
     }
 
@@ -235,7 +275,7 @@ app.get("/", (req, res) => {
     mensaje: "¡Backend funcionando correctamente!",
     estado: "OK",
   });
-  console.log("holaaa")
+  console.log("holaaa");
 });
 
 app.post("/registro", async function (req, res) {
