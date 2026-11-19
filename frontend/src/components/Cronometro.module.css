@@ -1,0 +1,32 @@
+/* Va en: src/components/Cronometro.module.css  (archivo NUEVO)
+   Para moverlo, cambiá top / left / transform. */
+.cronometro {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #b0476b;
+  font-weight: 700;
+  font-size: 1.2rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  pointer-events: none; /* no tapa ningún clic del juego */
+  user-select: none;
+}
+
+.tiempo {
+  font-variant-numeric: tabular-nums; /* los números no "bailan" */
+  min-width: 3.2ch;
+}
+
+/* cuando terminaste de decorar, el tiempo queda fijo */
+.detenido {
+  background: #ffe9f1;
+  color: #8a2f52;
+}

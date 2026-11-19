@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -19,6 +18,7 @@ export default function LobbyPage() {
   const [salas, setSalas] = useState([]);
   const [mensaje, setMensaje] = useState("");
   const [salaSeleccionada, setSalaSeleccionada] = useState("");
+  const [idTorta, setIdTorta] = useState(1); // 1 = vainilla, 2 = chocolate
 
   useEffect(() => {
     document.title = "Petit Bakery - Salas";
@@ -66,6 +66,15 @@ export default function LobbyPage() {
     }
   }, [socket, isConnected]);
 
+  // id del usuario que guardó el login (null si entró sin iniciar sesión)
+  function idUsuarioLogueado() {
+    try {
+      return Number(localStorage.getItem("id")) || null;
+    } catch {
+      return null;
+    }
+  }
+
   function abrirPanel(tipo, sala = "") {
     setPanel(tipo);
     setSalaSeleccionada(sala);
@@ -91,6 +100,8 @@ export default function LobbyPage() {
       nombre: nombreSala.trim(),
       contrasena,
       jugador: nombreJugador.trim() || "Pastelero",
+      idUsuario: idUsuarioLogueado(),
+      idTorta,
     });
   }
 
@@ -111,6 +122,7 @@ export default function LobbyPage() {
       id: salaSeleccionada || nombreSala.trim().toLowerCase(),
       contrasena,
       jugador: nombreJugador.trim() || "Pastelero",
+      idUsuario: idUsuarioLogueado(),
     });
   }
 
@@ -242,6 +254,37 @@ export default function LobbyPage() {
                   placeholder="Contraseña de la sala"
                   required
                 />
+
+                {panel === "crear" && (
+                  <>
+                    <label>Torta a preparar:</label>
+                    <div style={{ display: "flex", gap: "10px", margin: "6px 0 12px" }}>
+                      {[
+                        { id: 1, texto: "🍰 Vainilla" },
+                        { id: 2, texto: "🍫 Chocolate" },
+                      ].map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setIdTorta(t.id)}
+                          aria-pressed={idTorta === t.id}
+                          style={{
+                            flex: 1,
+                            padding: "10px",
+                            borderRadius: "12px",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: "1rem",
+                            border: idTorta === t.id ? "3px solid #b0476b" : "2px solid #e5b9c9",
+                            background: idTorta === t.id ? "#ffe9f1" : "#fff",
+                          }}
+                        >
+                          {t.texto}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 <button
                   type="submit"

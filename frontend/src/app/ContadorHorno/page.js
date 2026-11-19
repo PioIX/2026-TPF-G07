@@ -1,18 +1,27 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./ContadorHorno.module.css";
 import Button from "@/components/Button";
 import Buttonstyle from "@/components/Button.module.css";
+import { leerPartida } from "@/lib/partida";
+import { tortaDe } from "@/lib/tortas";
 
 const META = 10;
 const RUTA_PASO_3 = "/competencia3";
+const PASTEL_POR_DEFECTO = "/pastel-horneado.png";
 
 export default function ContadorHornoPage() {
   const router = useRouter();
   const [toques, setToques] = useState(0);
   const [brillos, setBrillos] = useState([]);
+  // NUEVO: la imagen del pastel horneado depende de la torta de la partida
+  const [imgPastel, setImgPastel] = useState(PASTEL_POR_DEFECTO);
   const horneado = toques >= META;
+
+  useEffect(() => {
+    setImgPastel(tortaDe(leerPartida()?.idTorta).pastelListo);
+  }, []);
 
   const tocar = () => {
     if (horneado) return;
@@ -36,16 +45,14 @@ export default function ContadorHornoPage() {
 
   return (
     <main className={styles.game}>
-          <Instrucciones
-  toques={toques}
-  horneado={horneado}
-/>
-      
-      {horneado && (<>
+      <Instrucciones toques={toques} horneado={horneado} />
 
+      {horneado && (
+        <>
           <div className={styles.resultado}>
             <img
-              src="/pastel-horneado.png"
+              src={imgPastel}
+              onError={() => setImgPastel(PASTEL_POR_DEFECTO)} // si falta la imagen, usa la de vainilla
               alt="Pastel horneado"
               className={styles.pastel}
             />
@@ -114,17 +121,9 @@ function Instrucciones({ toques, horneado }) {
 
   return (
     <aside className={styles.instrucciones}>
-      <h3 className={styles.instruccionesTitulo}>
-         {titulo} 
-      </h3>
-
-      <p className={styles.instruccionesTexto}>
-        {mensaje}
-      </p>
-
-      <span className={styles.instruccionesDecoracion}>
-
-      </span>
+      <h3 className={styles.instruccionesTitulo}>{titulo}</h3>
+      <p className={styles.instruccionesTexto}>{mensaje}</p>
+      <span className={styles.instruccionesDecoracion}></span>
     </aside>
   );
 }
