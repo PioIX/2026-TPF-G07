@@ -64,7 +64,8 @@ export default function InicioPage() {
       if (data.ok) {
         setUsuarios(data.usuarios);
         if (data.usuarios.length > 0) {
-          setSelectedUserId(data.usuarios[0].id_usuario);
+          // CAMBIO: el backend devuelve "id" (antes se leía "id_usuario" y quedaba undefined)
+          setSelectedUserId(data.usuarios[0].id);
         } else {
           setSelectedUserId("");
         }

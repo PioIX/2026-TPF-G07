@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import styles from "./decorarPastel.module.css";
 import Button from "@/components/Button"; // ajustá la ruta a donde esté tu componente
 import { guardarPastel } from "../finCompetencia/PastelesFinales";
+import { leerPartida, guardarResultado } from "@/lib/partida"; // guarda el tiempo total en la base al terminar
+import { tortaDe } from "@/lib/tortas"; // respaldo: qué pastel horneado se decora según la torta
 
 // Resolución lógica del canvas = tamaño de mesada.png
 const W = 1219;
@@ -28,8 +30,18 @@ const OBJETOS = [
   { id: "mangaAzul",     src: "/objetosDecoracion/mangaAzul.png",     x: 88, y: 66, w: 8 },
 ];
 
-// El pastel (sin movimiento en esta pantalla)
+// El pastel (sin movimiento en esta pantalla).
+// PASTEL.src es el de vainilla (y el de respaldo); el de cada torta sale de PASTELES (abajo).
 const PASTEL = { src: "/objetosDecoracion/pastelHorneado.png", x: 50, y: 54, w: 34 };
+
+// Imagen del pastel horneado según la torta de la partida (Tortas.id_torta).
+// Las dos imágenes están en /public/objetosDecoracion/. Si agregás otra torta, sumala acá.
+const PASTELES = {
+  1: "/objetosDecoracion/pastelHorneado.png", // vainilla
+  2: "/objetosDecoracion/tortaChoco.png", // chocolate
+};
+// Si el id no está en PASTELES, prueba con tortas.js y, si tampoco, usa el de vainilla.
+const pastelDe = (idTorta) => PASTELES[idTorta] ?? tortaDe(idTorta)?.pastelHorneado ?? PASTEL.src;
 
 // Cuánto más grande se ve la herramienta al agarrarla, respecto del objeto de la mesada
 const TOOL_ESCALA = 1.1;
@@ -71,8 +83,8 @@ const PASOS = [
 const PASO_MANGA = PASOS.findIndex((p) => p.id === "manga");
 const PASO_GRAGEAS = PASOS.findIndex((p) => p.id === "grageas");
 
-const RADIO_CREMA = 24;       // grosor de la espátula (px lógicos)
-const META_COBERTURA = 1;     // % del pastel que hay que cubrir (al llegar, se rellena el resto)
+const RADIO_CREMA = 30;       // grosor de la espátula (px lógicos)
+const META_COBERTURA = 0.99;     // % del pastel que hay que cubrir (al llegar, se rellena el resto)
 const META_PUNTOS = 90;       // estrellitas de manga
 const META_GRAGEAS = 900;     // grageas (antes 260: ahora el paso dura bastante más)
 const ESP_CREMA = 5;          // distancia entre "sellos" de crema
@@ -149,7 +161,48 @@ function puntaDe(img, modo) {
   }
   return { dx: tx / cw - 0.5, dy: (ty / ch - 0.5) * (ch / cw) };
 }
+// Cierra los agujeros chicos de la máscara (dilata y después erosiona)
+function cerrarMascara(d, w, h, r) {
+  let a = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) a[i] = d[i * 4 + 3] > 128 ? 1 : 0;
 
+  const filtro = (src, dilatar) => {
+    const tmp = new Uint8Array(w * h);
+    const out = new Uint8Array(w * h);
+    // horizontal
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let v = dilatar ? 0 : 1;
+        for (let k = -r; k <= r; k++) {
+          const xx = x + k;
+          const b = xx < 0 || xx >= w ? 0 : src[y * w + xx];
+          if (dilatar ? b : !b) { v = dilatar ? 1 : 0; break; }
+        }
+        tmp[y * w + x] = v;
+      }
+    }
+    // vertical
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let v = dilatar ? 0 : 1;
+        for (let k = -r; k <= r; k++) {
+          const yy = y + k;
+          const b = yy < 0 || yy >= h ? 0 : tmp[yy * w + x];
+          if (dilatar ? b : !b) { v = dilatar ? 1 : 0; break; }
+        }
+        out[y * w + x] = v;
+      }
+    }
+    return out;
+  };
+
+  a = filtro(a, true);   // dilatar: tapa los agujeros
+  a = filtro(a, false);  // erosionar: vuelve al tamaño original
+  for (let i = 0; i < w * h; i++) {
+    d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 255;
+    d[i * 4 + 3] = a[i] ? 255 : 0;
+  }
+}
 function EscenaDecorar({ onPaso, onProgreso, onFin, terminarRef }) {
   const canvasRef = useRef(null);
   const onPasoRef = useRef(onPaso);
@@ -261,6 +314,9 @@ function EscenaDecorar({ onPaso, onProgreso, onFin, terminarRef }) {
           d[i] = d[i + 1] = d[i + 2] = 255;
           d[i + 3] = ok ? 255 : 0;
         }
+        cerrarMascara(d, mw, mh, 4);   // ← NUEVO
+        g.putImageData(data, 0, 0);
+        s.maskAlpha = d;
         g.putImageData(data, 0, 0);
         s.maskAlpha = d;
       }
@@ -826,6 +882,11 @@ function EscenaDecorar({ onPaso, onProgreso, onFin, terminarRef }) {
           imgs[k] = await cargar(v);
         })
       );
+      // Pastel horneado de la torta de la partida: vainilla = pastelHorneado.png,
+      // chocolate = tortaChoco.png (ver PASTELES). Si esa imagen no existe, queda la de
+      // vainilla y el juego sigue igual.
+      const pastelSrc = pastelDe(leerPartida()?.idTorta);
+      if (pastelSrc !== PASTEL.src) imgs.pastel = (await cargar(pastelSrc)) ?? imgs.pastel;
       prepararPastel();
       if (vivo) raf = requestAnimationFrame(dibujar);
     })();
@@ -941,7 +1002,13 @@ export default function DecorarPastelPage() {
       <EscenaDecorar
         onPaso={setPaso}
         onProgreso={setProgreso}
-        onFin={() => setFin(true)}
+        onFin={() => {
+          setFin(true);
+          // Guarda el resultado en la base (UsuariosPorPartida.tiempo_total) y frena el cronómetro.
+          // Si terminaron todos los jugadores, el servidor cierra la partida y calcula el ganador.
+          // Si no hay partida en curso o falla el servidor, no pasa nada: el juego sigue igual.
+          guardarResultado();
+        }}
         terminarRef={terminarRef}
       />
 
