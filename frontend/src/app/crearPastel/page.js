@@ -5,6 +5,7 @@ import styles from "./crearPastel.module.css";
 import Button from "@/components/Button"; // ajustá la ruta a donde esté tu componente
 import { leerPartida } from "@/lib/partida"; // lee qué torta se está haciendo en la partida actual
 import { tortaDe } from "@/lib/tortas"; // imágenes y video de cada torta
+import { registrarPuntos } from "@/lib/puntos";
 
 // Resolución lógica del canvas = tamaño de mesada.png
 const W = 1885;
@@ -1226,7 +1227,7 @@ export default function CrearPastelPage() {
             onBowl={() => setBowlListo(true)}
             onBatidor={() => setBatidorListo(true)}
             onMezclaFin={() => setMezclaTerminada(true)}
-            onVideoFin={() => setTimeout(() => setVideoFin(true), BOTON_DELAY)}
+            onVideoFin={() => {registrarPuntos(1);setTimeout(() => { setVideoFin(true)}, BOTON_DELAY);}}
           />
           {bowlListo && !batidorListo && <Recetario paso={paso} receta={receta} titulo={info.nombre} />}
 

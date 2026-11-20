@@ -12,6 +12,7 @@ const {
   esTortaValida,
   cerrarPartida,
   intentarCerrar,
+  sumarPuntos
 } = require("./modulo/partidas");
 
 const app = express();
@@ -446,4 +447,88 @@ app.delete("/admin/eliminar-usuario", async function (req, res) {
       error: error.message,
     });
   }
+});
+
+
+
+////////////////////////////
+// PUNTOS DE LA COMPETENCIA
+////////////////////////////
+
+app.post("/puntos/paso", async function (req, res) {
+    try {
+
+        const { idPartida, idUsuario, paso } = req.body;
+
+        if (!idPartida || !idUsuario || !paso) {
+            return res.status(400).send({
+                ok: false,
+                message: "Faltan datos"
+            });
+        }
+
+        const resultado = await sumarPuntos(
+            Number(idPartida),
+            Number(idUsuario),
+            Number(paso)
+        );
+
+        res.send({
+            ok: true,
+            message: resultado.repetido
+                ? "Este paso ya fue puntuado"
+                : "Puntos agregados correctamente",
+            puntosSumados: resultado.sumados,
+            puntosTotales: resultado.puntos
+        });
+
+    } catch (error) {
+
+        console.error("Error al sumar puntos:", error);
+
+        res.status(500).send({
+            ok: false,
+            message: "Error al sumar los puntos",
+            error: error.message
+        });
+    }
+});
+
+
+// OBTENER RANKING DE UNA PARTIDA
+
+app.get("/ranking/:idPartida", async function (req, res) {
+    try {
+
+        const { idPartida } = req.params;
+
+        const ranking = await realizarQuery(
+            `SELECT
+                U.nombre,
+                UP.puntos,
+                UP.tiempo_total
+            FROM UsuariosPorPartida UP
+            INNER JOIN UsuariosBakery U
+                ON UP.id_usuario = U.id
+            WHERE UP.id_partida = ?
+            ORDER BY UP.puntos DESC,
+                     UP.tiempo_total ASC,
+                     U.nombre ASC`,
+            [idPartida]
+        );
+
+        res.send({
+            ok: true,
+            ranking: ranking || []
+        });
+
+    } catch (error) {
+
+        console.error("Error al obtener ranking:", error);
+
+        res.status(500).send({
+            ok: false,
+            message: "Error al obtener el ranking"
+        });
+    }
 });

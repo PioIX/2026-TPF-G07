@@ -6,6 +6,7 @@ import Button from "@/components/Button";
 import Buttonstyle from "@/components/Button.module.css";
 import { leerPartida } from "@/lib/partida";
 import { tortaDe } from "@/lib/tortas";
+import { registrarPuntos } from "@/lib/puntos";
 
 const META = 10;
 const RUTA_PASO_3 = "/competencia3";
@@ -30,6 +31,7 @@ export default function ContadorHornoPage() {
 
     if (nuevo >= META) {
       // los brillitos se generan una sola vez, al terminar
+      registrarPuntos(2);
       setBrillos(
         Array.from({ length: 36 }, (_, i) => ({
           id: i,

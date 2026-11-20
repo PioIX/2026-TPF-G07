@@ -6,6 +6,7 @@ import Button from "@/components/Button"; // ajustá la ruta a donde esté tu co
 import { guardarPastel } from "../finCompetencia/PastelesFinales";
 import { leerPartida, guardarResultado } from "@/lib/partida"; // guarda el tiempo total en la base al terminar
 import { tortaDe } from "@/lib/tortas"; // respaldo: qué pastel horneado se decora según la torta
+import { registrarPuntos } from "@/lib/puntos";
 
 // Resolución lógica del canvas = tamaño de mesada.png
 const W = 1219;
@@ -1004,6 +1005,7 @@ export default function DecorarPastelPage() {
         onProgreso={setProgreso}
         onFin={() => {
           setFin(true);
+          registrarPuntos(3);
           // Guarda el resultado en la base (UsuariosPorPartida.tiempo_total) y frena el cronómetro.
           // Si terminaron todos los jugadores, el servidor cierra la partida y calcula el ganador.
           // Si no hay partida en curso o falla el servidor, no pasa nada: el juego sigue igual.

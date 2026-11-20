@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import styles from "./finCopetencia.module.css";
 import { suscribirPasteles } from "./PastelesFinales";
+import Button from "@/components/Button";
+import Buttonstyle from "@/components/Button.module.css";
+import { useRouter } from "next/navigation";
 
 const FONDO = "/FinPastel.png";
 
@@ -21,6 +24,7 @@ export default function FinCompetencia() {
   const [pasteles, setPasteles] = useState([null, null]);
   const [ratio, setRatio] = useState(16 / 9); // proporción de FinPastel.png (se mide sola)
   const [conectado, setConectado] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     document.title = "Petit Bakery";
@@ -63,6 +67,14 @@ export default function FinCompetencia() {
             {DEBUG && <span className={styles.punto} style={{ left: `${p.x}%`, top: `${p.y}%` }} />}
           </div>
         ))}
+
+                
+            <Button
+              type="submit"
+              className={Buttonstyle.boton}
+              onClick={() => router.push("/puntos")}
+            > Ver Puntos</Button>
+      
       </div>
       {!conectado && <p className={styles.estado}>Conectando con el otro jugador…</p>}
     </main>
