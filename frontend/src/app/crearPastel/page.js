@@ -204,7 +204,7 @@ const DEBUG_VIDEO = false;
 // Retraso (ms) entre que termina el video y aparece el botón "Paso 2"
 const BOTON_DELAY = 500;
 // Ruta a la que lleva el botón
-const RUTA_PASO_2 = "/competencia3";
+const RUTA_PASO_2 = "/competencia2";
 
 /*
  * CIERRE (solo en las tortas con `moldeFinal`, como la de chocolate):
