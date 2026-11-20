@@ -16,13 +16,20 @@ export default function ContadorHornoPage() {
   const router = useRouter();
   const [toques, setToques] = useState(0);
   const [brillos, setBrillos] = useState([]);
-  // NUEVO: la imagen del pastel horneado depende de la torta de la partida
+  // Torta de la partida (null hasta leerla; si no hay partida, vainilla)
+  const [torta, setTorta] = useState(null);
+  // La imagen del pastel horneado depende de la torta de la partida
   const [imgPastel, setImgPastel] = useState(PASTEL_POR_DEFECTO);
   const horneado = toques >= META;
 
   useEffect(() => {
-    setImgPastel(tortaDe(leerPartida()?.idTorta).pastelListo);
+    const t = tortaDe(leerPartida()?.idTorta);
+    setTorta(t);
+    setImgPastel(t.pastelListo);
   }, []);
+
+  // Fondo de la torta; si no define uno, queda el del CSS
+  const fondo = torta?.fondoContador;
 
   const tocar = () => {
     if (horneado) return;
@@ -46,7 +53,10 @@ export default function ContadorHornoPage() {
   };
 
   return (
-    <main className={styles.game}>
+    <main
+      className={styles.game}
+      style={fondo ? { backgroundImage: `url("${fondo}")` } : undefined}
+    >
       <Instrucciones toques={toques} horneado={horneado} />
 
       {horneado && (
@@ -54,7 +64,11 @@ export default function ContadorHornoPage() {
           <div className={styles.resultado}>
             <img
               src={imgPastel}
-              onError={() => setImgPastel(PASTEL_POR_DEFECTO)} // si falta la imagen, usa la de vainilla
+              onError={() => {
+                // si falta la imagen, usa la de vainilla
+                console.warn("No se pudo cargar el pastel:", imgPastel, "-> uso", PASTEL_POR_DEFECTO);
+                setImgPastel(PASTEL_POR_DEFECTO);
+              }}
               alt="Pastel horneado"
               className={styles.pastel}
             />
